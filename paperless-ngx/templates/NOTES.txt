@@ -1,0 +1,42 @@
+Thank you for installing {{ .Chart.Name }} (version {{ .Chart.AppVersion }}).
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ Paperless-NGX is being deployed in namespace: {{ .Release.Namespace }}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Components deployed:
+  ✓ Paperless-NGX  ({{ .Values.paperless.image.repository }}:{{ include "paperless-ngx.imageTag" . }})
+{{- if .Values.postgresql.enabled }}
+  ✓ PostgreSQL      (CloudNativePG Cluster: {{ include "paperless-ngx.postgresClusterName" . }})
+{{- end }}
+{{- if .Values.redis.enabled }}
+  ✓ Redis           ({{ .Values.redis.image.repository }}:{{ .Values.redis.image.tag }})
+{{- end }}
+{{- if .Values.gotenberg.enabled }}
+  ✓ Gotenberg       ({{ .Values.gotenberg.image.repository }}:{{ .Values.gotenberg.image.tag }})
+{{- end }}
+{{- if .Values.tika.enabled }}
+  ✓ Tika            ({{ .Values.tika.image.repository }}:{{ .Values.tika.image.tag }})
+{{- end }}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ Accessing Paperless-NGX
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{{- if .Values.ingress.enabled }}
+  Ingress is enabled. Paperless-NGX is available at:
+  {{- range .Values.ingress.hosts }}
+    http{{ if $.Values.ingress.tls }}s{{ end }}://{{ .host }}
+  {{- end }}
+{{- else }}
+  Ingress is disabled. Use port-forwarding to access Paperless:
+
+    kubectl port-forward svc/{{ include "paperless-ngx.fullname" . }} 8000:{{ .Values.paperless.service.port }} -n {{ .Release.Namespace }}
+
+  Then open: http://localhost:8000
+{{- end }}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ Important Notes
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  • The CloudNativePG operator must be installed in the cluster before deploying.
+  • Admin user: {{ .Values.paperless.secrets.PAPERLESS_ADMIN_USER }} (password is in secret {{ include "paperless-ngx.secretName" . }})

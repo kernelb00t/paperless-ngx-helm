@@ -1,0 +1,350 @@
+# =============================================================================
+# Paperless-NGX Helm Chart – default values
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Global image pull secrets (applied to every component)
+# ---------------------------------------------------------------------------
+imagePullSecrets: []
+
+# Optional chart name overrides
+nameOverride: ""
+fullnameOverride: ""
+
+# ---------------------------------------------------------------------------
+# Paperless-NGX – main application
+# ---------------------------------------------------------------------------
+paperless:
+  image:
+    repository: ghcr.io/paperless-ngx/paperless-ngx
+    pullPolicy: IfNotPresent
+    # Defaults to .Chart.AppVersion when left empty
+    tag: ""
+
+  replicaCount: 1
+
+  # -- Paperless application configuration via environment variables.
+  # See https://docs.paperless-ngx.com/configuration/ for the full list.
+  config:
+    # Public URL used for generating links in e-mails / notifications.
+    PAPERLESS_URL: "https://paperless.example.com"
+    # Timezone for the application.
+    PAPERLESS_TIME_ZONE: "UTC"
+    # Language for OCR (use three-letter codes, e.g. "eng", "fra", "deu").
+    PAPERLESS_OCR_LANGUAGE: "eng"
+    # Number of workers for the task queue.
+    PAPERLESS_TASK_WORKERS: "2"
+    # Enable Tika + Gotenberg for converting non-PDF documents.
+    PAPERLESS_TIKA_ENABLED: "1"
+    # Additional raw env vars (any key: value pair will be set as-is)
+    # Example:
+    #   PAPERLESS_CONSUMER_POLLING: "60"
+
+  # -- Sensitive values (stored in a Kubernetes Secret).
+  secrets:
+    # Paperless secret key – REQUIRED: set to a long random string before deploying.
+    # Generate one with: openssl rand -hex 32
+    PAPERLESS_SECRET_KEY: ""
+    # Superuser credentials created on first boot.
+    PAPERLESS_ADMIN_USER: "admin"
+    # REQUIRED: set a strong password before deploying.
+    PAPERLESS_ADMIN_PASSWORD: ""
+    PAPERLESS_ADMIN_MAIL: "admin@example.com"
+
+  # -- Reference an externally managed secret instead of letting the chart
+  #    create one. When set, the `secrets` block above is ignored.
+  existingSecret: ""
+
+  service:
+    type: ClusterIP
+    port: 8000
+
+  # -- Liveness / readiness probes
+  livenessProbe:
+    httpGet:
+      path: /
+      port: http
+    initialDelaySeconds: 60
+    periodSeconds: 30
+    failureThreshold: 5
+
+  readinessProbe:
+    httpGet:
+      path: /
+      port: http
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    failureThreshold: 3
+
+  # -- Pod security context
+  podSecurityContext:
+    fsGroup: 1000
+
+  # -- Container security context
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+
+  resources: {}
+  #  requests:
+  #    cpu: 500m
+  #    memory: 1Gi
+  #  limits:
+  #    cpu: 2000m
+  #    memory: 4Gi
+
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  podAnnotations: {}
+  podLabels: {}
+
+  # -- Extra environment variables (raw list, merged with config/secrets above)
+  extraEnv: []
+  # - name: MY_VAR
+  #   value: "foo"
+
+  # -- Extra volumes to attach to the Paperless pod
+  extraVolumes: []
+  # -- Extra volume mounts for the Paperless container
+  extraVolumeMounts: []
+
+# ---------------------------------------------------------------------------
+# Service Account
+# ---------------------------------------------------------------------------
+serviceAccount:
+  create: true
+  automount: false
+  annotations: {}
+  # Explicit name override. Auto-generated from fullname when empty.
+  name: ""
+
+# ---------------------------------------------------------------------------
+# Ingress
+# ---------------------------------------------------------------------------
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+    # nginx.ingress.kubernetes.io/proxy-body-size: "0"
+  hosts:
+    - host: paperless.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  # - secretName: paperless-tls
+  #   hosts:
+  #     - paperless.example.com
+
+# ---------------------------------------------------------------------------
+# Persistent Volume Claims
+# ---------------------------------------------------------------------------
+persistence:
+  # -- PVC for /usr/src/paperless/data (database, index, …)
+  data:
+    enabled: true
+    storageClass: ""
+    accessModes:
+      - ReadWriteOnce
+    size: 10Gi
+    annotations: {}
+    # existingClaim: ""
+
+  # -- PVC for /usr/src/paperless/media (original documents)
+  media:
+    enabled: true
+    storageClass: ""
+    accessModes:
+      - ReadWriteOnce
+    size: 50Gi
+    annotations: {}
+    # existingClaim: ""
+
+  # -- PVC for /usr/src/paperless/export
+  export:
+    enabled: true
+    storageClass: ""
+    accessModes:
+      - ReadWriteOnce
+    size: 5Gi
+    annotations: {}
+    # existingClaim: ""
+
+  # -- PVC for /usr/src/paperless/consume (inbox for new documents)
+  consume:
+    enabled: true
+    storageClass: ""
+    accessModes:
+      - ReadWriteOnce
+    size: 5Gi
+    annotations: {}
+    # existingClaim: ""
+
+# ---------------------------------------------------------------------------
+# PostgreSQL – CloudNativePG Cluster
+# Requires the CloudNativePG operator to be installed in the cluster.
+# https://cloudnative-pg.io/
+# ---------------------------------------------------------------------------
+postgresql:
+  enabled: true
+
+  # -- Name of the CloudNativePG Cluster resource (defaults to <fullname>-postgres)
+  clusterName: ""
+
+  # -- Number of PostgreSQL instances in the cluster
+  instances: 1
+
+  # -- PostgreSQL version (major only – used by the bootstrap SQL and image)
+  postgresVersion: 16
+
+  image:
+    repository: ghcr.io/cloudnative-pg/postgresql
+    tag: "16"
+
+  # -- Storage for primary + replicas
+  storage:
+    size: 10Gi
+    storageClass: ""
+
+  # -- WAL storage (when empty, WAL is kept in the data volume)
+  walStorage:
+    enabled: false
+    size: 2Gi
+    storageClass: ""
+
+  # -- Name of the database, user and secret created by CNPG bootstrap
+  database: paperless
+  username: paperless
+
+  # -- The CNPG operator will create a secret named <clusterName>-app with
+  #    the password. Set superuserSecret to the secret name if you want to
+  #    customise it; leave empty to let CNPG generate it.
+  superuserSecret: ""
+
+  # -- Extra parameters appended to postgresql.conf
+  parameters: {}
+  #  max_connections: "200"
+  #  shared_buffers: "256MB"
+
+  # -- Pod resources for PostgreSQL instances
+  resources: {}
+
+  # -- Node selector, tolerations, affinity for the PostgreSQL pods
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+  # -- Additional annotations on the Cluster resource
+  annotations: {}
+
+# ---------------------------------------------------------------------------
+# Redis
+# From the official Paperless-NGX docker-compose, Redis 7 is recommended.
+# ---------------------------------------------------------------------------
+redis:
+  enabled: true
+
+  image:
+    repository: redis
+    tag: "7-alpine"
+    pullPolicy: IfNotPresent
+
+  service:
+    port: 6379
+
+  # -- Optional Redis password (leave empty for no auth)
+  password: ""
+
+  persistence:
+    enabled: false
+    storageClass: ""
+    accessModes:
+      - ReadWriteOnce
+    size: 1Gi
+
+  resources: {}
+
+  podSecurityContext:
+    fsGroup: 999
+
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 999
+    runAsGroup: 999
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# ---------------------------------------------------------------------------
+# Gotenberg – document conversion (PDF)
+# Recommended version from Paperless-NGX docs: gotenberg/gotenberg:8
+# ---------------------------------------------------------------------------
+gotenberg:
+  enabled: true
+
+  image:
+    repository: gotenberg/gotenberg
+    tag: "8"
+    pullPolicy: IfNotPresent
+
+  service:
+    port: 3000
+
+  resources: {}
+
+  podSecurityContext: {}
+
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1001
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# ---------------------------------------------------------------------------
+# Tika – document text extraction
+# Paperless-NGX ships its own Tika image at ghcr.io/paperless-ngx/tika
+# ---------------------------------------------------------------------------
+tika:
+  enabled: true
+
+  image:
+    repository: ghcr.io/paperless-ngx/tika
+    tag: "2.9.1-minimal"
+    pullPolicy: IfNotPresent
+
+  service:
+    port: 9998
+
+  resources: {}
+
+  podSecurityContext: {}
+
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 35002
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}

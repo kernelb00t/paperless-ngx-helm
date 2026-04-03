@@ -1,0 +1,18 @@
+apiVersion: v2
+name: paperless-ngx
+description: >
+  A fully-featured Helm chart for Paperless-NGX with PostgreSQL (CloudNativePG),
+  Redis, Gotenberg and Tika.
+type: application
+version: 0.1.0
+appVersion: "2.14.7"
+keywords:
+  - paperless
+  - document-management
+  - dms
+home: https://github.com/paperless-ngx/paperless-ngx
+sources:
+  - https://github.com/paperless-ngx/paperless-ngx
+maintainers:
+  - name: kernelb00t
+icon: https://raw.githubusercontent.com/paperless-ngx/paperless-ngx/main/docs/assets/favicon.png

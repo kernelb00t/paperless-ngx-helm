@@ -1,0 +1,68 @@
+{{- if .Values.postgresql.enabled }}
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ include "paperless-ngx.postgresClusterName" . }}
+  labels:
+    {{- include "paperless-ngx.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgresql
+  {{- with .Values.postgresql.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  instances: {{ .Values.postgresql.instances }}
+
+  imageName: "{{ .Values.postgresql.image.repository }}:{{ .Values.postgresql.image.tag }}"
+
+  # Bootstrap: create the paperless database and user
+  bootstrap:
+    initdb:
+      database: {{ .Values.postgresql.database }}
+      owner: {{ .Values.postgresql.username }}
+      {{- if .Values.postgresql.superuserSecret }}
+      secret:
+        name: {{ .Values.postgresql.superuserSecret }}
+      {{- end }}
+
+  storage:
+    size: {{ .Values.postgresql.storage.size }}
+    {{- with .Values.postgresql.storage.storageClass }}
+    storageClass: {{ . }}
+    {{- end }}
+
+  {{- if .Values.postgresql.walStorage.enabled }}
+  walStorage:
+    size: {{ .Values.postgresql.walStorage.size }}
+    {{- with .Values.postgresql.walStorage.storageClass }}
+    storageClass: {{ . }}
+    {{- end }}
+  {{- end }}
+
+  {{- if .Values.postgresql.parameters }}
+  postgresql:
+    parameters:
+      {{- toYaml .Values.postgresql.parameters | nindent 6 }}
+  {{- end }}
+
+  {{- with .Values.postgresql.resources }}
+  resources:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+
+  {{- if or .Values.postgresql.nodeSelector .Values.postgresql.tolerations .Values.postgresql.affinity }}
+  affinity:
+    {{- with .Values.postgresql.nodeSelector }}
+    nodeSelector:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- with .Values.postgresql.tolerations }}
+    tolerations:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- with .Values.postgresql.affinity }}
+    affinity:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+  {{- end }}
+{{- end }}

@@ -1,0 +1,34 @@
+# CI-only values – do NOT use in production.
+# These provide the minimum required configuration to install the chart in KinD
+# with small storage sizes to keep test runs fast.
+
+paperless:
+  secrets:
+    PAPERLESS_SECRET_KEY: "ci-test-secret-key-do-not-use-in-production-only-for-helm-testing"
+    PAPERLESS_ADMIN_USER: "admin"
+    PAPERLESS_ADMIN_PASSWORD: "ci-admin-password-do-not-use-in-production"
+    PAPERLESS_ADMIN_MAIL: "admin@ci.example.com"
+  config:
+    PAPERLESS_URL: "http://localhost:8000"
+    PAPERLESS_TIME_ZONE: "UTC"
+    PAPERLESS_OCR_LANGUAGE: "eng"
+    PAPERLESS_TASK_WORKERS: "1"
+    PAPERLESS_TIKA_ENABLED: "1"
+
+persistence:
+  data:
+    size: 1Gi
+  media:
+    size: 1Gi
+  export:
+    size: 1Gi
+  consume:
+    size: 1Gi
+
+cnpg:
+  storage:
+    size: 1Gi
+
+redis:
+  persistence:
+    enabled: false

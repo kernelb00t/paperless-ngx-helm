@@ -1,0 +1,152 @@
+name: Helm Chart CI
+
+on:
+  push:
+    branches:
+      - "**"
+    paths:
+      - "paperless-ngx/**"
+      - "ct.yaml"
+      - ".github/workflows/ci.yml"
+  pull_request:
+    paths:
+      - "paperless-ngx/**"
+      - "ct.yaml"
+      - ".github/workflows/ci.yml"
+  workflow_dispatch:
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Job 1 – Lint: static validation without a running cluster
+  # ---------------------------------------------------------------------------
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Set up chart-testing
+        uses: helm/chart-testing-action@v2
+
+      - name: Render chart templates
+        run: |
+          helm template paperless-ngx ./paperless-ngx \
+            --values paperless-ngx/ci/ct-values.yaml \
+            --debug > /dev/null
+
+      - name: Run chart-testing (lint)
+        run: ct lint --config ct.yaml --all
+
+  # ---------------------------------------------------------------------------
+  # Job 2 – Integration: full cluster deployment on KinD
+  # ---------------------------------------------------------------------------
+  integration:
+    name: Integration Test
+    runs-on: ubuntu-latest
+    needs: lint
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Create KinD cluster
+        uses: helm/kind-action@v1
+
+      - name: Install CloudNativePG operator
+        run: |
+          helm repo add cnpg https://cloudnative-pg.github.io/charts
+          helm upgrade --install cnpg cnpg/cloudnative-pg \
+            --namespace cnpg-system \
+            --create-namespace \
+            --wait \
+            --timeout 5m
+
+      - name: Install Helm chart
+        run: |
+          helm install paperless-ngx ./paperless-ngx \
+            --values paperless-ngx/ci/ct-values.yaml \
+            --namespace paperless-test \
+            --create-namespace \
+            --timeout 15m
+
+      - name: Wait for CNPG cluster to be ready
+        run: |
+          kubectl wait cluster/paperless-ngx-postgres \
+            --for=condition=Ready \
+            --timeout=300s \
+            --namespace paperless-test
+
+      - name: Wait for deployments to be available
+        run: |
+          kubectl rollout status deployment/paperless-ngx-redis \
+            --namespace paperless-test --timeout=2m
+          kubectl rollout status deployment/paperless-ngx-gotenberg \
+            --namespace paperless-test --timeout=2m
+          kubectl rollout status deployment/paperless-ngx-tika \
+            --namespace paperless-test --timeout=2m
+          kubectl rollout status deployment/paperless-ngx \
+            --namespace paperless-test --timeout=10m
+
+      - name: Run Helm tests (connectivity checks)
+        run: |
+          helm test paperless-ngx \
+            --namespace paperless-test \
+            --timeout 5m \
+            --logs
+
+      - name: Check Paperless-NGX logs for errors
+        run: |
+          echo "=== Paperless-NGX container logs ==="
+          kubectl logs deployment/paperless-ngx \
+            --namespace paperless-test \
+            --tail=500
+
+          ERRORS=$(kubectl logs deployment/paperless-ngx \
+            --namespace paperless-test \
+            --tail=500 \
+            | grep -E "^\s*\[?(ERROR|CRITICAL)\]?" \
+            || true)
+
+          if [ -n "$ERRORS" ]; then
+            echo "::error::Errors found in Paperless-NGX logs:"
+            echo "$ERRORS"
+            exit 1
+          fi
+
+          echo "No errors found in Paperless-NGX logs."
+
+      - name: Print diagnostics on failure
+        if: failure()
+        run: |
+          echo "=== Pod status ==="
+          kubectl get pods --namespace paperless-test -o wide
+
+          echo "=== Recent events ==="
+          kubectl get events --namespace paperless-test \
+            --sort-by='.lastTimestamp' | tail -40
+
+          echo "=== Paperless-NGX logs ==="
+          kubectl logs deployment/paperless-ngx \
+            --namespace paperless-test --tail=200 || true
+
+          echo "=== Redis logs ==="
+          kubectl logs deployment/paperless-ngx-redis \
+            --namespace paperless-test --tail=50 || true
+
+          echo "=== CNPG cluster status ==="
+          kubectl describe cluster/paperless-ngx-postgres \
+            --namespace paperless-test || true

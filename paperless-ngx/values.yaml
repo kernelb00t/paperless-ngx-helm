@@ -30,7 +30,8 @@ paperless:
     PAPERLESS_URL: "https://paperless.example.com"
     # Timezone for the application.
     PAPERLESS_TIME_ZONE: "UTC"
-    # Language for OCR (use three-letter codes, e.g. "eng", "fra", "deu").
+    # Language(s) for OCR. Use three-letter ISO 639-2 codes (e.g. "eng", "fra", "deu").
+    # Multiple languages can be combined with a + separator: "eng+fra+deu".
     PAPERLESS_OCR_LANGUAGE: "eng"
     # Number of workers for the task queue.
     PAPERLESS_TASK_WORKERS: "2"
@@ -41,6 +42,9 @@ paperless:
     #   PAPERLESS_CONSUMER_POLLING: "60"
 
   # -- Sensitive values (stored in a Kubernetes Secret).
+  # Tip: to avoid putting credentials in values.yaml, set `existingSecret`
+  # to the name of a pre-existing Kubernetes Secret and leave this block empty.
+  # The secret must contain the keys listed below.
   secrets:
     # Paperless secret key – REQUIRED: set to a long random string before deploying.
     # Generate one with: openssl rand -hex 32
@@ -59,10 +63,11 @@ paperless:
     type: ClusterIP
     port: 8000
 
-  # -- Liveness / readiness probes
+  # -- Liveness / readiness probes.
+  # Paperless-NGX exposes /api/ which returns HTTP 200 when the app is ready.
   livenessProbe:
     httpGet:
-      path: /
+      path: /api/
       port: http
     initialDelaySeconds: 60
     periodSeconds: 30
@@ -70,7 +75,7 @@ paperless:
 
   readinessProbe:
     httpGet:
-      path: /
+      path: /api/
       port: http
     initialDelaySeconds: 30
     periodSeconds: 10
@@ -201,7 +206,12 @@ postgresql:
   # -- Number of PostgreSQL instances in the cluster
   instances: 1
 
-  # -- PostgreSQL version (major only – used by the bootstrap SQL and image)
+  # -- PostgreSQL major version used for the CloudNativePG cluster image.
+  # IMPORTANT: bumping this value performs a major-version upgrade.
+  # CloudNativePG supports in-place major upgrades via the `pg_upgrade` method.
+  # Set `postgresql.image.tag` to the new version and apply with:
+  #   helm upgrade ... --set postgresql.postgresVersion=17 --set postgresql.image.tag=17
+  # Refer to https://cloudnative-pg.io/docs/current/postgresql_upgrade/ for details.
   postgresVersion: 16
 
   image:
@@ -246,7 +256,6 @@ postgresql:
 
 # ---------------------------------------------------------------------------
 # Redis
-# From the official Paperless-NGX docker-compose, Redis 7 is recommended.
 # ---------------------------------------------------------------------------
 redis:
   enabled: true
@@ -289,7 +298,6 @@ redis:
 
 # ---------------------------------------------------------------------------
 # Gotenberg – document conversion (PDF)
-# Recommended version from Paperless-NGX docs: gotenberg/gotenberg:8
 # ---------------------------------------------------------------------------
 gotenberg:
   enabled: true
@@ -320,7 +328,6 @@ gotenberg:
 
 # ---------------------------------------------------------------------------
 # Tika – document text extraction
-# Paperless-NGX ships its own Tika image at ghcr.io/paperless-ngx/tika
 # ---------------------------------------------------------------------------
 tika:
   enabled: true

@@ -4,7 +4,10 @@ description: >
   A fully-featured Helm chart for Paperless-NGX with PostgreSQL (CloudNativePG),
   Redis, Gotenberg and Tika.
 type: application
-version: 0.1.0
+# Chart version follows the pattern <appVersion>-<chart-patch> so that the
+# chart can be updated independently of Paperless-NGX releases.
+# Bump the chart-patch suffix (e.g. 2.14.7-1) for chart-only changes.
+version: 2.14.7-0
 appVersion: "2.14.7"
 keywords:
   - paperless

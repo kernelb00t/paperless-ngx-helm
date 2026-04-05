@@ -87,8 +87,8 @@ See [`paperless-ngx/values.yaml`](paperless-ngx/values.yaml) for the full, annot
 |-----------|-------------|---------|
 | `paperless.image.tag` | Paperless-NGX image tag (empty = Chart appVersion) | `""` |
 | `paperless.config` | Non-secret env vars passed to the app | see values.yaml |
-| `paperless.secrets.*` | Secret credentials (secret key, admin user/password) | see values.yaml |
-| `paperless.existingSecret` | Use a pre-existing Secret instead of creating one | `""` |
+| `paperless.secrets.*` | Secret credentials (secret key, admin user/password) — **required** unless `existingSecret` is set | see values.yaml |
+| `paperless.existingSecret` | Name of a pre-existing K8s Secret to use instead of chart-managed secrets. The secret must contain `PAPERLESS_SECRET_KEY`, `PAPERLESS_ADMIN_USER`, `PAPERLESS_ADMIN_PASSWORD`, `PAPERLESS_ADMIN_MAIL` | `""` |
 | `ingress.enabled` | Expose Paperless via an Ingress | `false` |
 | `persistence.*.size` | PVC sizes for data / media / export / consume | various |
 | `postgresql.instances` | Number of CloudNativePG instances | `1` |
@@ -99,6 +99,8 @@ See [`paperless-ngx/values.yaml`](paperless-ngx/values.yaml) for the full, annot
 
 ## PostgreSQL (CloudNativePG)
 
+> **Only CloudNativePG is currently supported** as the database backend. If you need MySQL/MariaDB support, contributions are welcome — please open a PR.
+
 The chart creates a `Cluster` custom resource (CRD provided by the [CloudNativePG operator](https://cloudnative-pg.io/)).
 The operator automatically:
 - creates a secret `<clusterName>-app` containing `username` and `password`
@@ -108,6 +110,12 @@ These are automatically wired into the Paperless deployment.
 
 > **Note:** The CloudNativePG operator **must** be installed before running `helm install`.
 > See: https://cloudnative-pg.io/docs/current/installation_upgrade/
+
+### Upgrading PostgreSQL major version
+
+Bumping `postgresql.postgresVersion` (and `postgresql.image.tag`) triggers a major-version upgrade.
+CloudNativePG supports this via its built-in `pg_upgrade` method — see the
+[CNPG upgrade docs](https://cloudnative-pg.io/docs/current/postgresql_upgrade/) before proceeding.
 
 ## Security
 

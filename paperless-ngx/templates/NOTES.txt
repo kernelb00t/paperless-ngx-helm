@@ -38,5 +38,7 @@ Components deployed:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  Important Notes
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{{- if .Values.postgresql.enabled }}
   • The CloudNativePG operator must be installed in the cluster before deploying.
+{{- end }}
   • Admin user: {{ .Values.paperless.secrets.PAPERLESS_ADMIN_USER }} (password is in secret {{ include "paperless-ngx.secretName" . }})

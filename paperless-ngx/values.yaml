@@ -193,11 +193,11 @@ persistence:
     # existingClaim: ""
 
 # ---------------------------------------------------------------------------
-# PostgreSQL – CloudNativePG Cluster
+# CloudNativePG (CNPG) – PostgreSQL Cluster
 # Requires the CloudNativePG operator to be installed in the cluster.
 # https://cloudnative-pg.io/
 # ---------------------------------------------------------------------------
-postgresql:
+cnpg:
   enabled: true
 
   # -- Name of the CloudNativePG Cluster resource (defaults to <fullname>-postgres)
@@ -209,8 +209,8 @@ postgresql:
   # -- PostgreSQL major version used for the CloudNativePG cluster image.
   # IMPORTANT: bumping this value performs a major-version upgrade.
   # CloudNativePG supports in-place major upgrades via the `pg_upgrade` method.
-  # Set `postgresql.image.tag` to the new version and apply with:
-  #   helm upgrade ... --set postgresql.postgresVersion=17 --set postgresql.image.tag=17
+  # Set `cnpg.image.tag` to the new version and apply with:
+  #   helm upgrade ... --set cnpg.postgresVersion=17 --set cnpg.image.tag=17
   # Refer to https://cloudnative-pg.io/docs/current/postgresql_upgrade/ for details.
   postgresVersion: 16
 

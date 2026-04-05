@@ -1,4 +1,4 @@
-{{- if .Values.postgresql.enabled }}
+{{- if .Values.cnpg.enabled }}
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
@@ -6,61 +6,61 @@ metadata:
   labels:
     {{- include "paperless-ngx.labels" . | nindent 4 }}
     app.kubernetes.io/component: postgresql
-  {{- with .Values.postgresql.annotations }}
+  {{- with .Values.cnpg.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
-  instances: {{ .Values.postgresql.instances }}
+  instances: {{ .Values.cnpg.instances }}
 
-  imageName: "{{ .Values.postgresql.image.repository }}:{{ .Values.postgresql.image.tag }}"
+  imageName: "{{ .Values.cnpg.image.repository }}:{{ .Values.cnpg.image.tag }}"
 
   # Bootstrap: create the paperless database and user
   bootstrap:
     initdb:
-      database: {{ .Values.postgresql.database }}
-      owner: {{ .Values.postgresql.username }}
-      {{- if .Values.postgresql.superuserSecret }}
+      database: {{ .Values.cnpg.database }}
+      owner: {{ .Values.cnpg.username }}
+      {{- if .Values.cnpg.superuserSecret }}
       secret:
-        name: {{ .Values.postgresql.superuserSecret }}
+        name: {{ .Values.cnpg.superuserSecret }}
       {{- end }}
 
   storage:
-    size: {{ .Values.postgresql.storage.size }}
-    {{- with .Values.postgresql.storage.storageClass }}
+    size: {{ .Values.cnpg.storage.size }}
+    {{- with .Values.cnpg.storage.storageClass }}
     storageClass: {{ . }}
     {{- end }}
 
-  {{- if .Values.postgresql.walStorage.enabled }}
+  {{- if .Values.cnpg.walStorage.enabled }}
   walStorage:
-    size: {{ .Values.postgresql.walStorage.size }}
-    {{- with .Values.postgresql.walStorage.storageClass }}
+    size: {{ .Values.cnpg.walStorage.size }}
+    {{- with .Values.cnpg.walStorage.storageClass }}
     storageClass: {{ . }}
     {{- end }}
   {{- end }}
 
-  {{- if .Values.postgresql.parameters }}
+  {{- if .Values.cnpg.parameters }}
   postgresql:
     parameters:
-      {{- toYaml .Values.postgresql.parameters | nindent 6 }}
+      {{- toYaml .Values.cnpg.parameters | nindent 6 }}
   {{- end }}
 
-  {{- with .Values.postgresql.resources }}
+  {{- with .Values.cnpg.resources }}
   resources:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 
-  {{- if or .Values.postgresql.nodeSelector .Values.postgresql.tolerations .Values.postgresql.affinity }}
+  {{- if or .Values.cnpg.nodeSelector .Values.cnpg.tolerations .Values.cnpg.affinity }}
   affinity:
-    {{- with .Values.postgresql.nodeSelector }}
+    {{- with .Values.cnpg.nodeSelector }}
     nodeSelector:
       {{- toYaml . | nindent 6 }}
     {{- end }}
-    {{- with .Values.postgresql.tolerations }}
+    {{- with .Values.cnpg.tolerations }}
     tolerations:
       {{- toYaml . | nindent 6 }}
     {{- end }}
-    {{- with .Values.postgresql.affinity }}
+    {{- with .Values.cnpg.affinity }}
     affinity:
       {{- toYaml . | nindent 6 }}
     {{- end }}

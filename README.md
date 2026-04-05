@@ -91,8 +91,8 @@ See [`paperless-ngx/values.yaml`](paperless-ngx/values.yaml) for the full, annot
 | `paperless.existingSecret` | Name of a pre-existing K8s Secret to use instead of chart-managed secrets. The secret must contain `PAPERLESS_SECRET_KEY`, `PAPERLESS_ADMIN_USER`, `PAPERLESS_ADMIN_PASSWORD`, `PAPERLESS_ADMIN_MAIL` | `""` |
 | `ingress.enabled` | Expose Paperless via an Ingress | `false` |
 | `persistence.*.size` | PVC sizes for data / media / export / consume | various |
-| `postgresql.instances` | Number of CloudNativePG instances | `1` |
-| `postgresql.storage.size` | Storage size for the Postgres cluster | `10Gi` |
+| `cnpg.instances` | Number of CloudNativePG instances | `1` |
+| `cnpg.storage.size` | Storage size for the Postgres cluster | `10Gi` |
 | `redis.enabled` | Deploy Redis sidecar | `true` |
 | `gotenberg.enabled` | Deploy Gotenberg | `true` |
 | `tika.enabled` | Deploy Tika | `true` |
@@ -113,7 +113,7 @@ These are automatically wired into the Paperless deployment.
 
 ### Upgrading PostgreSQL major version
 
-Bumping `postgresql.postgresVersion` (and `postgresql.image.tag`) triggers a major-version upgrade.
+Bumping `cnpg.postgresVersion` (and `cnpg.image.tag`) triggers a major-version upgrade.
 CloudNativePG supports this via its built-in `pg_upgrade` method — see the
 [CNPG upgrade docs](https://cloudnative-pg.io/docs/current/postgresql_upgrade/) before proceeding.
 

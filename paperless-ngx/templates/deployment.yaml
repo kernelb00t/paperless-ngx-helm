@@ -46,7 +46,7 @@ spec:
               protocol: TCP
           env:
             # ---- Database (PostgreSQL via CloudNativePG) ----
-            {{- if .Values.postgresql.enabled }}
+            {{- if .Values.cnpg.enabled }}
             - name: PAPERLESS_DBENGINE
               value: "postgresql"
             - name: PAPERLESS_DBHOST
@@ -54,7 +54,7 @@ spec:
             - name: PAPERLESS_DBPORT
               value: "5432"
             - name: PAPERLESS_DBNAME
-              value: {{ .Values.postgresql.database | quote }}
+              value: {{ .Values.cnpg.database | quote }}
             - name: PAPERLESS_DBUSER
               valueFrom:
                 secretKeyRef:

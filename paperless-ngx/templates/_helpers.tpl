@@ -94,8 +94,8 @@ Name of the Paperless secret
 Full name of the CloudNativePG Cluster
 */}}
 {{- define "paperless-ngx.postgresClusterName" -}}
-{{- if .Values.postgresql.clusterName }}
-{{- .Values.postgresql.clusterName }}
+{{- if .Values.cnpg.clusterName }}
+{{- .Values.cnpg.clusterName }}
 {{- else }}
 {{- printf "%s-postgres" (include "paperless-ngx.fullname" .) }}
 {{- end }}

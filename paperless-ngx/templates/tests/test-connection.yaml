@@ -17,6 +17,7 @@ metadata:
     "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
 spec:
   restartPolicy: Never
+  automountServiceAccountToken: false
   containers:
     - name: redis-ping
       image: "redis:7-alpine"
@@ -49,6 +50,7 @@ metadata:
     "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
 spec:
   restartPolicy: Never
+  automountServiceAccountToken: false
   containers:
     - name: postgres-check
       image: "postgres:16"
@@ -78,6 +80,7 @@ metadata:
     "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
 spec:
   restartPolicy: Never
+  automountServiceAccountToken: false
   containers:
     - name: api-check
       image: "curlimages/curl:8"
@@ -109,6 +112,7 @@ metadata:
     "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
 spec:
   restartPolicy: Never
+  automountServiceAccountToken: false
   containers:
     - name: gotenberg-check
       image: "curlimages/curl:8"
@@ -141,6 +145,7 @@ metadata:
     "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
 spec:
   restartPolicy: Never
+  automountServiceAccountToken: false
   containers:
     - name: tika-check
       image: "curlimages/curl:8"

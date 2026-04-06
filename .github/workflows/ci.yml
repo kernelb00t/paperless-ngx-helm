@@ -3,7 +3,7 @@ name: Helm Chart CI
 on:
   push:
     branches:
-      - "**"
+      - "main"
     paths:
       - "paperless-ngx/**"
       - "ct.yaml"

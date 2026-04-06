@@ -76,7 +76,7 @@ paperless:
     fsGroup: 1000
   # -- Container security context
   # NOTE: paperless-ngx uses s6-overlay which must start as root (uid 0) to
-  # initialise /run and then drops to the paperless user (uid 1000) internally.
+  # initialize /run and then drops to the paperless user (uid 1000) internally.
   # Setting runAsUser / runAsNonRoot here will break the container.
   # Use podSecurityContext.fsGroup to ensure volume mounts are accessible.
   securityContext: {}

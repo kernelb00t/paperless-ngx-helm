@@ -1,0 +1,306 @@
+name: Sync Upstream Paperless-NGX
+
+# Tracks the upstream docker-compose.postgres-tika.yml and GitHub Releases to
+# keep the chart in sync with the official paperless-ngx distribution.
+#
+# Behaviour:
+#   • If only image versions changed   → create PR and enable auto-merge (waits for CI).
+#   • If docker-compose structure changed → create PR but NO auto-merge (needs manual review).
+#
+# Requirements for auto-merge to work:
+#   - Repository Settings → General → "Allow auto-merge" must be enabled.
+#   - Branch protection on `main` must require the CI checks to pass.
+#   - A PAT stored as secret `GH_PAT` is recommended so that CI triggers on
+#     the created PR.  Without it the default GITHUB_TOKEN is used, which will
+#     NOT trigger CI workflows on the PR (auto-merge will be set but CI won't run).
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  COMPOSE_URL: "https://raw.githubusercontent.com/paperless-ngx/paperless-ngx/main/docker/compose/docker-compose.postgres-tika.yml"
+  COMPOSE_REF: ".github/upstream/docker-compose.postgres-tika.yml"
+
+jobs:
+  sync:
+    name: Check and sync upstream
+    runs-on: ubuntu-latest
+
+    steps:
+      # -----------------------------------------------------------------------
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # -----------------------------------------------------------------------
+      - name: Install yq
+        run: |
+          YQ_VERSION=$(curl -fsSL \
+            -H "Authorization: Bearer ${{ github.token }}" \
+            "https://api.github.com/repos/mikefarah/yq/releases/latest" \
+            | python3 -c "import sys,json; print(json.load(sys.stdin)['tag_name'])")
+          sudo wget -qO /usr/local/bin/yq \
+            "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64"
+          sudo chmod +x /usr/local/bin/yq
+
+      # -----------------------------------------------------------------------
+      - name: Install Python dependencies
+        run: pip install pyyaml -q
+
+      # -----------------------------------------------------------------------
+      - name: Fetch upstream docker-compose
+        run: |
+          curl -fsSL "${{ env.COMPOSE_URL }}" -o /tmp/upstream-compose.yml
+
+      # -----------------------------------------------------------------------
+      - name: Get latest paperless-ngx release
+        id: release
+        run: |
+          VERSION=$(curl -fsSL \
+            -H "Authorization: Bearer ${{ github.token }}" \
+            "https://api.github.com/repos/paperless-ngx/paperless-ngx/releases/latest" \
+            | python3 -c "import sys,json; v=json.load(sys.stdin)['tag_name']; print(v.lstrip('v'))")
+          echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+
+      # -----------------------------------------------------------------------
+      # Compares the fetched docker-compose with the stored reference and
+      # determines whether the diff is image-version-only or structural.
+      - name: Analyze upstream changes
+        id: analyze
+        env:
+          COMPOSE_REF: ${{ env.COMPOSE_REF }}
+        run: |
+          python3 - <<'PYEOF'
+          import yaml, json, copy, os, sys
+
+          def get_images(compose):
+              return {
+                  svc: cfg["image"]
+                  for svc, cfg in compose.get("services", {}).items()
+                  if "image" in cfg
+              }
+
+          def strip_tags(compose):
+              """Replace every image tag with a placeholder for structural comparison."""
+              c = copy.deepcopy(compose)
+              for svc_data in c.get("services", {}).values():
+                  if "image" in svc_data:
+                      svc_data["image"] = svc_data["image"].rsplit(":", 1)[0] + ":TAG"
+              return c
+
+          ref_path = os.environ["COMPOSE_REF"]
+
+          with open("/tmp/upstream-compose.yml") as f:
+              new_compose = yaml.safe_load(f)
+
+          new_images = get_images(new_compose)
+
+          if not os.path.exists(ref_path):
+              print("No reference file found – first-run initialisation only.", flush=True)
+              with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+                  out.write("compose_changed=false\n")
+                  out.write("only_image_versions=true\n")
+                  out.write(f"compose_images={json.dumps(new_images)}\n")
+              sys.exit(0)
+
+          with open(ref_path) as f:
+              old_compose = yaml.safe_load(f)
+
+          compose_changed = (
+              yaml.dump(old_compose, sort_keys=True)
+              != yaml.dump(new_compose, sort_keys=True)
+          )
+
+          if compose_changed:
+              only_image_versions = (
+                  yaml.dump(strip_tags(old_compose), sort_keys=True)
+                  == yaml.dump(strip_tags(new_compose), sort_keys=True)
+              )
+          else:
+              only_image_versions = True
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+              out.write(f"compose_changed={'true' if compose_changed else 'false'}\n")
+              out.write(f"only_image_versions={'true' if only_image_versions else 'false'}\n")
+              out.write(f"compose_images={json.dumps(new_images)}\n")
+          PYEOF
+
+      # -----------------------------------------------------------------------
+      # Computes which values.yaml / Chart.yaml fields actually need updating
+      # and calculates the new chart version.
+      - name: Compute required changes
+        id: compute
+        env:
+          NEW_APP_VERSION: ${{ steps.release.outputs.version }}
+          COMPOSE_IMAGES: ${{ steps.analyze.outputs.compose_images }}
+        run: |
+          python3 - <<'PYEOF'
+          import yaml, json, os
+
+          with open("paperless-ngx/Chart.yaml") as f:
+              chart = yaml.safe_load(f)
+          with open("paperless-ngx/values.yaml") as f:
+              values = yaml.safe_load(f)
+
+          current_app = chart["appVersion"]
+          current_ver = chart["version"]
+          new_app = os.environ["NEW_APP_VERSION"]
+          compose_images = json.loads(os.environ["COMPOSE_IMAGES"])
+
+          # Map docker-compose service → (values.yaml image path, canonical repository)
+          SERVICE_MAP = {
+              "broker":    ("redis.image",     "redis"),
+              "gotenberg": ("gotenberg.image", "gotenberg/gotenberg"),
+              "tika":      ("tika.image",      "docker.io/apache/tika"),
+          }
+
+          changes = []
+          image_updates = {}
+
+          for svc, (path, norm_repo) in SERVICE_MAP.items():
+              if svc not in compose_images:
+                  continue
+              img = compose_images[svc]
+              tag = img.rsplit(":", 1)[1] if ":" in img else "latest"
+
+              # Navigate nested values dict
+              parts = path.split(".")
+              obj = values
+              for p in parts:
+                  obj = obj[p]
+
+              old_tag = obj.get("tag", "")
+              old_repo = obj.get("repository", "")
+              if tag != old_tag or norm_repo != old_repo:
+                  changes.append(
+                      f"- `{svc}`: `{old_repo}:{old_tag}` → `{norm_repo}:{tag}`"
+                  )
+                  image_updates[path] = {"repository": norm_repo, "tag": tag}
+
+          paperless_changed = new_app != current_app
+          if paperless_changed:
+              changes.append(f"- `paperless-ngx`: `{current_app}` → `{new_app}`")
+
+          if paperless_changed:
+              new_ver = f"{new_app}-0"
+          elif changes:
+              base, patch = current_ver.rsplit("-", 1)
+              new_ver = f"{base}-{int(patch) + 1}"
+          else:
+              new_ver = current_ver
+
+          has_changes = bool(changes)
+
+          eof = "EOF_CHANGES_BLOCK"
+          out_path = os.environ["GITHUB_OUTPUT"]
+          with open(out_path, "a") as f:
+              f.write(f"has_changes={'true' if has_changes else 'false'}\n")
+              f.write(f"paperless_changed={'true' if paperless_changed else 'false'}\n")
+              f.write(f"new_app_version={new_app}\n")
+              f.write(f"new_chart_version={new_ver}\n")
+              f.write(f"image_updates={json.dumps(image_updates)}\n")
+              if changes:
+                  f.write(f"changes_list<<{eof}\n")
+                  f.write("\n".join(changes) + "\n")
+                  f.write(f"{eof}\n")
+              else:
+                  f.write("changes_list=No upstream changes detected.\n")
+          PYEOF
+
+      # -----------------------------------------------------------------------
+      - name: Apply updates to chart files
+        if: steps.compute.outputs.has_changes == 'true'
+        env:
+          IMAGE_UPDATES: ${{ steps.compute.outputs.image_updates }}
+        run: |
+          # Update image repository + tag for each service in values.yaml
+          python3 - <<'PYEOF'
+          import json, os, subprocess
+
+          for path, vals in json.loads(os.environ["IMAGE_UPDATES"]).items():
+              repo, tag = vals["repository"], vals["tag"]
+              subprocess.run(
+                  ["yq", "-i", f".{path}.repository = \"{repo}\"",
+                   "paperless-ngx/values.yaml"],
+                  check=True,
+              )
+              subprocess.run(
+                  ["yq", "-i", f".{path}.tag = \"{tag}\"",
+                   "paperless-ngx/values.yaml"],
+                  check=True,
+              )
+          PYEOF
+
+          # Update Chart.yaml
+          yq -i ".appVersion = \"${{ steps.compute.outputs.new_app_version }}\"" \
+            paperless-ngx/Chart.yaml
+          yq -i ".version = \"${{ steps.compute.outputs.new_chart_version }}\"" \
+            paperless-ngx/Chart.yaml
+
+          # Refresh the reference snapshot when the compose itself changed
+          if [ "${{ steps.analyze.outputs.compose_changed }}" = "true" ]; then
+            cp /tmp/upstream-compose.yml "${{ env.COMPOSE_REF }}"
+          fi
+
+      # -----------------------------------------------------------------------
+      - name: Determine merge strategy
+        if: steps.compute.outputs.has_changes == 'true'
+        id: strategy
+        run: |
+          if [ "${{ steps.analyze.outputs.only_image_versions }}" = "true" ]; then
+            echo "automerge=true" >> "${GITHUB_OUTPUT}"
+            COMPOSE_NOTE="✅ Only image versions changed – auto-merge will be requested once CI passes."
+          else
+            echo "automerge=false" >> "${GITHUB_OUTPUT}"
+            COMPOSE_NOTE="⚠️ Structural changes detected in upstream docker-compose – **manual review required** before merge."
+          fi
+          echo "compose_note=${COMPOSE_NOTE}" >> "${GITHUB_OUTPUT}"
+
+      # -----------------------------------------------------------------------
+      - name: Create Pull Request
+        if: steps.compute.outputs.has_changes == 'true'
+        id: create-pr
+        uses: peter-evans/create-pull-request@v7
+        with:
+          # Use GH_PAT when available so the PR triggers the CI workflow.
+          # Without a PAT the default GITHUB_TOKEN is used, but CI will NOT
+          # auto-trigger on the resulting PR (auto-merge will be pending forever).
+          token: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+          commit-message: |
+            chore(deps): sync upstream paperless-ngx ${{ steps.compute.outputs.new_app_version }}
+
+            Chart version: ${{ steps.compute.outputs.new_chart_version }}
+          branch: "chore/sync-upstream-${{ steps.compute.outputs.new_app_version }}"
+          delete-branch: true
+          title: "chore(deps): bump paperless-ngx to ${{ steps.compute.outputs.new_app_version }} (chart ${{ steps.compute.outputs.new_chart_version }})"
+          body: |
+            ## Upstream Paperless-NGX Sync
+
+            Automated sync from the [official docker-compose](https://github.com/paperless-ngx/paperless-ngx/blob/main/docker/compose/docker-compose.postgres-tika.yml) and the [latest GitHub release](https://github.com/paperless-ngx/paperless-ngx/releases/latest).
+
+            ### Changes detected
+
+            ${{ steps.compute.outputs.changes_list }}
+
+            **New chart version:** `${{ steps.compute.outputs.new_chart_version }}`
+
+            ---
+
+            ${{ steps.strategy.outputs.compose_note }}
+          labels: "dependencies"
+
+      # -----------------------------------------------------------------------
+      - name: Enable auto-merge
+        if: |
+          steps.compute.outputs.has_changes == 'true' &&
+          steps.strategy.outputs.automerge == 'true' &&
+          steps.create-pr.outputs.pull-request-number != ''
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr merge --auto --squash "${{ steps.create-pr.outputs.pull-request-number }}"

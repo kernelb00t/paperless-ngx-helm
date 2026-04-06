@@ -2,5 +2,44 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended"
+  ],
+  "labels": ["renovate"],
+  "packageRules": [
+    {
+      "description": "Images tracked by the sync-upstream workflow – disable Renovate to avoid conflicts",
+      "matchManagers": ["helmv3"],
+      "matchPackageNames": [
+        "ghcr.io/paperless-ngx/paperless-ngx",
+        "redis",
+        "library/redis",
+        "docker.io/library/redis",
+        "gotenberg/gotenberg",
+        "docker.io/gotenberg/gotenberg",
+        "apache/tika",
+        "docker.io/apache/tika"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "Auto-merge CNPG postgresql image minor/patch updates after CI passes",
+      "matchManagers": ["helmv3"],
+      "matchPackageNames": [
+        "ghcr.io/cloudnative-pg/postgresql"
+      ],
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true,
+      "automergeType": "pr",
+      "automergeStrategy": "squash",
+      "bumpVersion": "prerelease"
+    },
+    {
+      "description": "Auto-merge GitHub Actions minor/patch/digest updates after CI passes",
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "automerge": true,
+      "automergeType": "pr",
+      "automergeStrategy": "squash"
+    }
   ]
 }
+

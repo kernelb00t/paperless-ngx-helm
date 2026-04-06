@@ -83,7 +83,7 @@ spec:
   automountServiceAccountToken: false
   containers:
     - name: api-check
-      image: "curlimages/curl:8"
+      image: "curlimages/curl:8.18.0"
       command:
         - curl
         - --fail
@@ -115,7 +115,7 @@ spec:
   automountServiceAccountToken: false
   containers:
     - name: gotenberg-check
-      image: "curlimages/curl:8"
+      image: "curlimages/curl:8.18.0"
       command:
         - curl
         - --fail
@@ -148,7 +148,7 @@ spec:
   automountServiceAccountToken: false
   containers:
     - name: tika-check
-      image: "curlimages/curl:8"
+      image: "curlimages/curl:8.18.0"
       command:
         - curl
         - --fail

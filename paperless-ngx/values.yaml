@@ -6,11 +6,9 @@
 # Global image pull secrets (applied to every component)
 # ---------------------------------------------------------------------------
 imagePullSecrets: []
-
 # Optional chart name overrides
 nameOverride: ""
 fullnameOverride: ""
-
 # ---------------------------------------------------------------------------
 # Paperless-NGX – main application
 # ---------------------------------------------------------------------------
@@ -20,9 +18,7 @@ paperless:
     pullPolicy: IfNotPresent
     # Defaults to .Chart.AppVersion when left empty
     tag: ""
-
   replicaCount: 1
-
   # -- Paperless application configuration via environment variables.
   # See https://docs.paperless-ngx.com/configuration/ for the full list.
   config:
@@ -40,7 +36,6 @@ paperless:
     # Additional raw env vars (any key: value pair will be set as-is)
     # Example:
     #   PAPERLESS_CONSUMER_POLLING: "60"
-
   # -- Sensitive values (stored in a Kubernetes Secret).
   # Tip: to avoid putting credentials in values.yaml, set `existingSecret`
   # to the name of a pre-existing Kubernetes Secret and leave this block empty.
@@ -54,15 +49,12 @@ paperless:
     # REQUIRED: set a strong password before deploying.
     PAPERLESS_ADMIN_PASSWORD: ""
     PAPERLESS_ADMIN_MAIL: "admin@example.com"
-
   # -- Reference an externally managed secret instead of letting the chart
   #    create one. When set, the `secrets` block above is ignored.
   existingSecret: ""
-
   service:
     type: ClusterIP
     port: 8000
-
   # -- Liveness / readiness probes.
   # Paperless-NGX exposes /api/ which returns HTTP 200 when the app is ready.
   livenessProbe:
@@ -72,7 +64,6 @@ paperless:
     initialDelaySeconds: 60
     periodSeconds: 30
     failureThreshold: 5
-
   readinessProbe:
     httpGet:
       path: /api/
@@ -80,21 +71,15 @@ paperless:
     initialDelaySeconds: 30
     periodSeconds: 10
     failureThreshold: 3
-
   # -- Pod security context
   podSecurityContext:
     fsGroup: 1000
-
   # -- Container security context
-  securityContext:
-    runAsNonRoot: true
-    runAsUser: 1000
-    runAsGroup: 1000
-    allowPrivilegeEscalation: false
-    capabilities:
-      drop:
-        - ALL
-
+  # NOTE: paperless-ngx uses s6-overlay which must start as root (uid 0) to
+  # initialize /run and then drops to the paperless user (uid 1000) internally.
+  # Setting runAsUser / runAsNonRoot here will break the container.
+  # Use podSecurityContext.fsGroup to ensure volume mounts are accessible.
+  securityContext: {}
   resources: {}
   #  requests:
   #    cpu: 500m
@@ -108,7 +93,6 @@ paperless:
   affinity: {}
   podAnnotations: {}
   podLabels: {}
-
   # -- Extra environment variables (raw list, merged with config/secrets above)
   extraEnv: []
   # - name: MY_VAR
@@ -118,7 +102,6 @@ paperless:
   extraVolumes: []
   # -- Extra volume mounts for the Paperless container
   extraVolumeMounts: []
-
 # ---------------------------------------------------------------------------
 # Service Account
 # ---------------------------------------------------------------------------
@@ -128,7 +111,6 @@ serviceAccount:
   annotations: {}
   # Explicit name override. Auto-generated from fullname when empty.
   name: ""
-
 # ---------------------------------------------------------------------------
 # Ingress
 # ---------------------------------------------------------------------------
@@ -136,8 +118,8 @@ ingress:
   enabled: false
   className: ""
   annotations: {}
-    # cert-manager.io/cluster-issuer: letsencrypt-prod
-    # nginx.ingress.kubernetes.io/proxy-body-size: "0"
+  # cert-manager.io/cluster-issuer: letsencrypt-prod
+  # nginx.ingress.kubernetes.io/proxy-body-size: "0"
   hosts:
     - host: paperless.example.com
       paths:
@@ -147,7 +129,6 @@ ingress:
   # - secretName: paperless-tls
   #   hosts:
   #     - paperless.example.com
-
 # ---------------------------------------------------------------------------
 # Persistent Volume Claims
 # ---------------------------------------------------------------------------
@@ -161,7 +142,6 @@ persistence:
     size: 10Gi
     annotations: {}
     # existingClaim: ""
-
   # -- PVC for /usr/src/paperless/media (original documents)
   media:
     enabled: true
@@ -171,7 +151,6 @@ persistence:
     size: 50Gi
     annotations: {}
     # existingClaim: ""
-
   # -- PVC for /usr/src/paperless/export
   export:
     enabled: true
@@ -181,7 +160,6 @@ persistence:
     size: 5Gi
     annotations: {}
     # existingClaim: ""
-
   # -- PVC for /usr/src/paperless/consume (inbox for new documents)
   consume:
     enabled: true
@@ -191,7 +169,6 @@ persistence:
     size: 5Gi
     annotations: {}
     # existingClaim: ""
-
 # ---------------------------------------------------------------------------
 # CloudNativePG (CNPG) – PostgreSQL Cluster
 # Requires the CloudNativePG operator to be installed in the cluster.
@@ -199,13 +176,10 @@ persistence:
 # ---------------------------------------------------------------------------
 cnpg:
   enabled: true
-
   # -- Name of the CloudNativePG Cluster resource (defaults to <fullname>-postgres)
   clusterName: ""
-
   # -- Number of PostgreSQL instances in the cluster
   instances: 1
-
   # -- PostgreSQL major version used for the CloudNativePG cluster image.
   # IMPORTANT: bumping this value performs a major-version upgrade.
   # CloudNativePG supports in-place major upgrades via the `pg_upgrade` method.
@@ -213,31 +187,25 @@ cnpg:
   #   helm upgrade ... --set cnpg.postgresVersion=17 --set cnpg.image.tag=17
   # Refer to https://cloudnative-pg.io/docs/current/postgresql_upgrade/ for details.
   postgresVersion: 16
-
   image:
     repository: ghcr.io/cloudnative-pg/postgresql
     tag: "16"
-
   # -- Storage for primary + replicas
   storage:
     size: 10Gi
     storageClass: ""
-
   # -- WAL storage (when empty, WAL is kept in the data volume)
   walStorage:
     enabled: false
     size: 2Gi
     storageClass: ""
-
   # -- Name of the database, user and secret created by CNPG bootstrap
   database: paperless
   username: paperless
-
   # -- The CNPG operator will create a secret named <clusterName>-app with
   #    the password. Set superuserSecret to the secret name if you want to
   #    customise it; leave empty to let CNPG generate it.
   superuserSecret: ""
-
   # -- Extra parameters appended to postgresql.conf
   parameters: {}
   #  max_connections: "200"
@@ -245,44 +213,34 @@ cnpg:
 
   # -- Pod resources for PostgreSQL instances
   resources: {}
-
   # -- Node selector, tolerations, affinity for the PostgreSQL pods
   nodeSelector: {}
   tolerations: []
   affinity: {}
-
   # -- Additional annotations on the Cluster resource
   annotations: {}
-
 # ---------------------------------------------------------------------------
 # Redis
 # ---------------------------------------------------------------------------
 redis:
   enabled: true
-
   image:
     repository: redis
-    tag: "7-alpine"
+    tag: "8"
     pullPolicy: IfNotPresent
-
   service:
     port: 6379
-
   # -- Optional Redis password (leave empty for no auth)
   password: ""
-
   persistence:
     enabled: false
     storageClass: ""
     accessModes:
       - ReadWriteOnce
     size: 1Gi
-
   resources: {}
-
   podSecurityContext:
     fsGroup: 999
-
   securityContext:
     runAsNonRoot: true
     runAsUser: 999
@@ -291,29 +249,22 @@ redis:
     capabilities:
       drop:
         - ALL
-
   nodeSelector: {}
   tolerations: []
   affinity: {}
-
 # ---------------------------------------------------------------------------
 # Gotenberg – document conversion (PDF)
 # ---------------------------------------------------------------------------
 gotenberg:
   enabled: true
-
   image:
     repository: gotenberg/gotenberg
-    tag: "8"
+    tag: "8.25"
     pullPolicy: IfNotPresent
-
   service:
     port: 3000
-
   resources: {}
-
   podSecurityContext: {}
-
   securityContext:
     runAsNonRoot: true
     runAsUser: 1001
@@ -321,29 +272,22 @@ gotenberg:
     capabilities:
       drop:
         - ALL
-
   nodeSelector: {}
   tolerations: []
   affinity: {}
-
 # ---------------------------------------------------------------------------
 # Tika – document text extraction
 # ---------------------------------------------------------------------------
 tika:
   enabled: true
-
   image:
     repository: docker.io/apache/tika
     tag: "latest"
     pullPolicy: IfNotPresent
-
   service:
     port: 9998
-
   resources: {}
-
   podSecurityContext: {}
-
   securityContext:
     runAsNonRoot: true
     runAsUser: 35002
@@ -351,7 +295,6 @@ tika:
     capabilities:
       drop:
         - ALL
-
   nodeSelector: {}
   tolerations: []
   affinity: {}

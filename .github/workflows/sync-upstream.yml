@@ -43,7 +43,10 @@ jobs:
           YQ_VERSION=$(curl -fsSL \
             -H "Authorization: Bearer ${{ github.token }}" \
             "https://api.github.com/repos/mikefarah/yq/releases/latest" \
-            | python3 -c "import sys,json; print(json.load(sys.stdin)['tag_name'])")
+            2>/dev/null \
+            | jq -r '.tag_name // "v4.44.3"' \
+            || echo "v4.44.3")
+          echo "Installing yq ${YQ_VERSION}"
           sudo wget -qO /usr/local/bin/yq \
             "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64"
           sudo chmod +x /usr/local/bin/yq
@@ -61,10 +64,15 @@ jobs:
       - name: Get latest paperless-ngx release
         id: release
         run: |
-          VERSION=$(curl -fsSL \
+          RESPONSE=$(curl -fsSL \
             -H "Authorization: Bearer ${{ github.token }}" \
-            "https://api.github.com/repos/paperless-ngx/paperless-ngx/releases/latest" \
-            | python3 -c "import sys,json; v=json.load(sys.stdin)['tag_name']; print(v.lstrip('v'))")
+            "https://api.github.com/repos/paperless-ngx/paperless-ngx/releases/latest")
+          TAG=$(echo "${RESPONSE}" | jq -r '.tag_name')
+          if [ -z "${TAG}" ] || [ "${TAG}" = "null" ]; then
+            echo "::error::Failed to parse tag_name from GitHub Releases API response"
+            exit 1
+          fi
+          VERSION="${TAG#v}"
           echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
 
       # -----------------------------------------------------------------------
@@ -167,6 +175,8 @@ jobs:
                   continue
               img = compose_images[svc]
               tag = img.rsplit(":", 1)[1] if ":" in img else "latest"
+              if tag == "latest":
+                  print(f"::warning::Service '{svc}' uses image tag 'latest' – pinned version cannot be tracked.", flush=True)
 
               # Navigate nested values dict
               parts = path.split(".")
@@ -189,8 +199,11 @@ jobs:
           if paperless_changed:
               new_ver = f"{new_app}-0"
           elif changes:
-              base, patch = current_ver.rsplit("-", 1)
-              new_ver = f"{base}-{int(patch) + 1}"
+              if "-" in current_ver:
+                  base, patch = current_ver.rsplit("-", 1)
+                  new_ver = f"{base}-{int(patch) + 1}"
+              else:
+                  new_ver = f"{current_ver}-1"
           else:
               new_ver = current_ver
 

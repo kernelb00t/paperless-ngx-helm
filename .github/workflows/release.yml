@@ -1,0 +1,95 @@
+name: Release Helm Chart
+
+# Publishes the Helm chart in two formats every time a new chart version lands
+# on `main`:
+#   1. OCI artifact → ghcr.io/<owner>/charts/paperless-ngx:<version>
+#   2. Traditional Helm repository → GitHub Pages (gh-pages branch) + GitHub
+#      Release asset, served as https://<owner>.github.io/<repo>
+#
+# Requirements:
+#   - Repository Settings → Pages → Source must be set to "Deploy from a branch"
+#     using the `gh-pages` branch (root `/`).
+#   - Repository Settings → Actions → Workflow permissions must allow
+#     "Read and write permissions" (or the individual permissions below are
+#     granted via branch-protection / CODEOWNERS).
+#   - For OCI packages to be publicly visible, the package visibility must be
+#     set to "Public" in the GitHub Packages settings after the first push.
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "paperless-ngx/**"
+      - "!paperless-ngx/ci/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write   # create GitHub Releases and push to gh-pages
+  packages: write   # push OCI image to ghcr.io
+
+jobs:
+  release:
+    name: Package and publish
+    runs-on: ubuntu-latest
+
+    steps:
+      # -----------------------------------------------------------------------
+      - name: Checkout (full history required by chart-releaser)
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      # -----------------------------------------------------------------------
+      - name: Configure Git identity
+        run: |
+          git config user.name  "${{ github.actor }}"
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+
+      # -----------------------------------------------------------------------
+      - name: Set up Helm
+        uses: azure/setup-helm@v5
+
+      # -----------------------------------------------------------------------
+      # Read the chart version once so both publish steps use the same value.
+      - name: Read chart version
+        id: chart
+        run: |
+          VERSION=$(grep '^version:' paperless-ngx/Chart.yaml | awk '{print $2}')
+          echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+
+      # -----------------------------------------------------------------------
+      # ── OCI publish ─────────────────────────────────────────────────────────
+      # Pushes to:  ghcr.io/<owner>/charts/paperless-ngx:<version>
+      # -----------------------------------------------------------------------
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Package chart (OCI)
+        run: |
+          mkdir -p .oci-packages
+          helm package paperless-ngx --destination .oci-packages
+
+      - name: Push chart to OCI registry
+        run: |
+          helm push .oci-packages/paperless-ngx-${{ steps.chart.outputs.version }}.tgz \
+            oci://ghcr.io/${{ github.repository_owner }}/charts
+
+      # -----------------------------------------------------------------------
+      # ── GitHub Pages publish ─────────────────────────────────────────────────
+      # Uses chart-releaser to:
+      #   • Create a GitHub Release with the packaged chart tarball.
+      #   • Update index.yaml on the gh-pages branch.
+      # The resulting Helm repo URL is:
+      #   https://<owner>.github.io/<repo>
+      # -----------------------------------------------------------------------
+      - name: Release chart to GitHub Pages
+        uses: helm/chart-releaser-action@v1
+        with:
+          charts_dir: "."
+        env:
+          CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"

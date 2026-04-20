@@ -74,7 +74,7 @@ jobs:
       # -----------------------------------------------------------------------
       # OCI release: push the chart to GHCR as an OCI artifact.
       - name: Log in to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ${{ env.OCI_REGISTRY }}
           username: ${{ github.repository_owner }}

@@ -64,9 +64,9 @@ jobs:
         run: |
           VERSION="$(yq '.version'    ${{ env.CHART_DIR }}/Chart.yaml)"
           APP_VERSION="$(yq '.appVersion' ${{ env.CHART_DIR }}/Chart.yaml)"
-          # Allow manual override of the version
           if [ -n "${INPUT_VERSION}" ]; then
             VERSION="${INPUT_VERSION}"
+            yq e -i ".version = \"${VERSION}\"" "${{ env.CHART_DIR }}/Chart.yaml"
           fi
           echo "version=${VERSION}"         >> "$GITHUB_OUTPUT"
           echo "app_version=${APP_VERSION}" >> "$GITHUB_OUTPUT"

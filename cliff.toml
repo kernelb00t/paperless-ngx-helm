@@ -1,0 +1,47 @@
+# git-cliff configuration
+# https://git-cliff.org/docs/configuration
+
+[changelog]
+header = "# Changelog\n\nAll notable changes to this Helm chart are documented here.\n\n"
+body = """
+{% if version -%}
+## [{{ version | trim_start_matches(pat="v") }}] — {{ timestamp | date(format="%Y-%m-%d") }}
+{% else -%}
+## [Unreleased]
+{% endif -%}
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group | striptags | trim | upper_first }}
+{% for commit in commits -%}
+- {% if commit.scope %}**{{ commit.scope }}**: {% endif %}{{ commit.message | upper_first }} ([`{{ commit.id | truncate(length=7, end="") }}`](https://github.com/kernelb00t/paperless-ngx-helm/commit/{{ commit.id }}))
+{% endfor %}
+{% endfor %}\n
+"""
+trim = true
+footer = ""
+
+[git]
+conventional_commits = true
+# Keep non-conventional commits and fall them into "Other"
+filter_unconventional = false
+split_commits = false
+commit_preprocessors = [
+  { pattern = '\(#([0-9]+)\)', replace = "([#${1}](https://github.com/kernelb00t/paperless-ngx-helm/pull/${1}))" },
+]
+commit_parsers = [
+  { message = "^feat",            group = "✨ Features"            },
+  { message = "^fix",             group = "🐛 Bug Fixes"           },
+  { message = "^doc|^docs",       group = "📚 Documentation"       },
+  { message = "^perf",            group = "⚡ Performance"          },
+  { message = "^refactor",        group = "♻️  Refactoring"          },
+  { message = "^chore\\(deps\\)", group = "📦 Dependency Updates"   },
+  { message = "^chore",           group = "🔧 Miscellaneous"        },
+  { message = "^test",            group = "🧪 Testing"              },
+  { message = "^ci",              group = "🤖 CI/CD"               },
+  { message = ".*",               group = "🗒️  Other"               },
+]
+protect_breaking_commits = false
+filter_commits = false
+# Tags created by helm/chart-releaser follow the pattern: <chart-name>-<version>
+# e.g. paperless-ngx-2.14.7-0
+tag_pattern = "paperless-ngx-[0-9].*"
+sort_commits = "oldest"

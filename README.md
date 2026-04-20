@@ -22,8 +22,39 @@ always tracking the latest release.
 
 ## Installing the chart
 
+### From the Helm repository (recommended)
+
+The chart is published via GitHub Pages.  
+Enable the repository once and install from there:
+
 ```bash
-# Add the repo (or use a local path)
+helm repo add paperless-ngx https://kernelb00t.github.io/paperless-ngx-helm
+helm repo update
+
+helm install my-paperless paperless-ngx/paperless-ngx \
+  --set paperless.secrets.PAPERLESS_SECRET_KEY="$(openssl rand -hex 32)" \
+  --set paperless.secrets.PAPERLESS_ADMIN_PASSWORD="strongpassword" \
+  --namespace paperless \
+  --create-namespace
+```
+
+### From OCI (GHCR)
+
+The chart is also published as an OCI artifact to the GitHub Container Registry:
+
+```bash
+helm install my-paperless \
+  oci://ghcr.io/kernelb00t/paperless-ngx \
+  --version <version> \
+  --set paperless.secrets.PAPERLESS_SECRET_KEY="$(openssl rand -hex 32)" \
+  --set paperless.secrets.PAPERLESS_ADMIN_PASSWORD="strongpassword" \
+  --namespace paperless \
+  --create-namespace
+```
+
+### From a local clone (development)
+
+```bash
 helm install my-paperless ./paperless-ngx \
   --set paperless.secrets.PAPERLESS_SECRET_KEY="$(openssl rand -hex 32)" \
   --set paperless.secrets.PAPERLESS_ADMIN_PASSWORD="strongpassword" \
@@ -74,7 +105,7 @@ persistence:
 ```
 
 ```bash
-helm install my-paperless ./paperless-ngx -f my-values.yaml -n paperless --create-namespace
+helm install my-paperless paperless-ngx/paperless-ngx -f my-values.yaml -n paperless --create-namespace
 ```
 
 ## Values
@@ -125,5 +156,34 @@ in values if your environment requires different settings.
 ## Upgrading
 
 ```bash
-helm upgrade my-paperless ./paperless-ngx -n paperless -f my-values.yaml
+# From the Helm repo
+helm repo update
+helm upgrade my-paperless paperless-ngx/paperless-ngx -n paperless -f my-values.yaml
+
+# From OCI
+helm upgrade my-paperless oci://ghcr.io/kernelb00t/paperless-ngx \
+  --version <new-version> -n paperless -f my-values.yaml
 ```
+
+## Releases & Changelog
+
+Every release is published in three places:
+
+| Distribution          | URL |
+|-----------------------|-----|
+| GitHub Releases       | <https://github.com/kernelb00t/paperless-ngx-helm/releases> |
+| Helm repo (gh-pages)  | `https://kernelb00t.github.io/paperless-ngx-helm` |
+| OCI (GHCR)            | `ghcr.io/kernelb00t/paperless-ngx` |
+
+The full [CHANGELOG.md](CHANGELOG.md) is automatically generated from conventional
+commits by [git-cliff](https://git-cliff.org) on each release.
+
+### Releasing a new version
+
+Releases are triggered manually via the **Release Chart** GitHub Actions workflow
+(`Actions → Release Chart → Run workflow`).
+
+> **Note (GitHub Pages):** For the Helm repository to work, GitHub Pages must be
+> enabled in the repository settings and configured to deploy from the `gh-pages`
+> branch:
+> `Settings → Pages → Source → Deploy from branch → Branch: gh-pages / root`

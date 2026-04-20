@@ -1,0 +1,95 @@
+name: Release Chart
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Trigger: manual only for now.
+# Uncomment the `push` block below to auto-release whenever Chart.yaml
+# is changed on `main` (e.g. after the sync-upstream PR is merged).
+# ─────────────────────────────────────────────────────────────────────────────
+on:
+  workflow_dispatch:
+
+  # push:
+  #   branches:
+  #     - main
+  #   paths:
+  #     - "paperless-ngx/Chart.yaml"
+
+permissions:
+  contents: write   # create GitHub Releases and push gh-pages branch
+  packages: write   # push chart to GHCR (OCI)
+
+env:
+  CHART_DIR: paperless-ngx
+  OCI_REGISTRY: ghcr.io
+
+jobs:
+  # ───────────────────────────────────────────────────────────────────────────
+  release:
+    name: Package · Release · Publish OCI
+    runs-on: ubuntu-latest
+
+    steps:
+      # -----------------------------------------------------------------------
+      - name: Checkout (full history required for release notes)
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      # -----------------------------------------------------------------------
+      - name: Set up Helm
+        uses: azure/setup-helm@v5
+
+      # -----------------------------------------------------------------------
+      - name: Read chart metadata
+        id: chart
+        run: |
+          VERSION="$(yq '.version'    ${{ env.CHART_DIR }}/Chart.yaml)"
+          APP_VERSION="$(yq '.appVersion' ${{ env.CHART_DIR }}/Chart.yaml)"
+          echo "version=${VERSION}"         >> "$GITHUB_OUTPUT"
+          echo "app_version=${APP_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Chart version : ${VERSION}"
+          echo "App version   : ${APP_VERSION}"
+
+      # -----------------------------------------------------------------------
+      - name: Generate per-release notes (for GitHub Release body)
+        uses: orhun/git-cliff-action@v4
+        with:
+          args: --latest --strip header
+        env:
+          OUTPUT: ${{ env.CHART_DIR }}/RELEASE_NOTES.md
+          GITHUB_REPO: ${{ github.repository }}
+
+      # -----------------------------------------------------------------------
+      # Classic release: packages the chart, creates a GitHub Release, and
+      # updates index.yaml on the gh-pages branch (used as a Helm repository).
+      - name: Release chart (classic — GitHub Pages + GitHub Releases)
+        uses: helm/chart-releaser-action@v1
+        with:
+          charts_dir: .
+          config: .github/cr.yaml
+          skip_existing: true
+        env:
+          CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+
+      # -----------------------------------------------------------------------
+      # OCI release: push the chart to GHCR as an OCI artifact.
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.OCI_REGISTRY }}
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Package chart for OCI
+        run: |
+          helm package ${{ env.CHART_DIR }} \
+            --version     "${{ steps.chart.outputs.version }}" \
+            --app-version "${{ steps.chart.outputs.app_version }}" \
+            --destination /tmp/oci-charts
+
+      - name: Push chart to OCI registry (GHCR)
+        run: |
+          helm push /tmp/oci-charts/*.tgz \
+            oci://${{ env.OCI_REGISTRY }}/${{ github.repository_owner }}
+          echo "✅ OCI chart available at:"
+          echo "   oci://${{ env.OCI_REGISTRY }}/${{ github.repository_owner }}/paperless-ngx:${{ steps.chart.outputs.version }}"

@@ -15,10 +15,8 @@ on:
   #     - "paperless-ngx/Chart.yaml"
 
 permissions:
-  contents: write   # create releases, push gh-pages
-  packages: write   # push to GHCR (OCI)
-  pages: write      # GitHub Pages (gh-pages branch managed by chart-releaser)
-  id-token: write   # OIDC (future use)
+  contents: write   # create GitHub Releases and push gh-pages branch
+  packages: write   # push chart to GHCR (OCI)
 
 env:
   CHART_DIR: paperless-ngx
@@ -79,7 +77,7 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ${{ env.OCI_REGISTRY }}
-          username: ${{ github.actor }}
+          username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Package chart for OCI

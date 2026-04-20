@@ -4,6 +4,7 @@
     "config:recommended"
   ],
   "labels": ["renovate"],
+  "enabledManagers": ["helmv3", "github-actions"],
   "packageRules": [
     {
       "description": "Images tracked by the sync-upstream workflow – disable Renovate to avoid conflicts",
@@ -41,4 +42,3 @@
     }
   ]
 }
-

@@ -186,10 +186,10 @@ cnpg:
   # Set `cnpg.image.tag` to the new version and apply with:
   #   helm upgrade ... --set cnpg.postgresVersion=17 --set cnpg.image.tag=17
   # Refer to https://cloudnative-pg.io/docs/current/postgresql_upgrade/ for details.
-  postgresVersion: 16
+  postgresVersion: 18
   image:
     repository: ghcr.io/cloudnative-pg/postgresql
-    tag: "16"
+    tag: "18"
   # -- Storage for primary + replicas
   storage:
     size: 10Gi

@@ -7,11 +7,6 @@ name: Release Chart
 # ─────────────────────────────────────────────────────────────────────────────
 on:
   workflow_dispatch:
-    inputs:
-      version:
-        description: "Chart version override (leave empty to use Chart.yaml)"
-        required: false
-        type: string
 
   # push:
   #   branches:
@@ -20,7 +15,7 @@ on:
   #     - "paperless-ngx/Chart.yaml"
 
 permissions:
-  contents: write   # create releases, push gh-pages, commit CHANGELOG.md
+  contents: write   # create releases, push gh-pages
   packages: write   # push to GHCR (OCI)
   pages: write      # GitHub Pages (gh-pages branch managed by chart-releaser)
   id-token: write   # OIDC (future use)
@@ -37,20 +32,10 @@ jobs:
 
     steps:
       # -----------------------------------------------------------------------
-      - name: Checkout (full history required for changelog)
+      - name: Checkout (full history required for release notes)
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
-          # Use GH_PAT when available so that the CHANGELOG.md push back to
-          # main can trigger downstream workflows.  Falls back to the default
-          # GITHUB_TOKEN (push will still work; CI on main won't re-trigger).
-          token: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
-
-      # -----------------------------------------------------------------------
-      - name: Configure Git
-        run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
 
       # -----------------------------------------------------------------------
       - name: Set up Helm
@@ -59,58 +44,22 @@ jobs:
       # -----------------------------------------------------------------------
       - name: Read chart metadata
         id: chart
-        env:
-          INPUT_VERSION: ${{ inputs.version }}
         run: |
           VERSION="$(yq '.version'    ${{ env.CHART_DIR }}/Chart.yaml)"
           APP_VERSION="$(yq '.appVersion' ${{ env.CHART_DIR }}/Chart.yaml)"
-          if [ -n "${INPUT_VERSION}" ]; then
-            VERSION="${INPUT_VERSION}"
-            yq e -i ".version = \"${VERSION}\"" "${{ env.CHART_DIR }}/Chart.yaml"
-          fi
           echo "version=${VERSION}"         >> "$GITHUB_OUTPUT"
           echo "app_version=${APP_VERSION}" >> "$GITHUB_OUTPUT"
           echo "Chart version : ${VERSION}"
           echo "App version   : ${APP_VERSION}"
 
       # -----------------------------------------------------------------------
-      - name: Install git-cliff
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: |
-          CLIFF_VERSION=$(curl -fsSL \
-            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
-            "https://api.github.com/repos/orhun/git-cliff/releases/latest" \
-            | jq -r '.tag_name // "v2.6.1"' || echo "v2.6.1")
-          echo "Installing git-cliff ${CLIFF_VERSION}"
-          CLIFF_SEMVER="${CLIFF_VERSION#v}"
-          curl -sSfL \
-            "https://github.com/orhun/git-cliff/releases/download/${CLIFF_VERSION}/git-cliff-${CLIFF_SEMVER}-x86_64-unknown-linux-gnu.tar.gz" \
-            | tar -xz --wildcards --strip-components=1 -C /usr/local/bin '*/git-cliff'
-          git-cliff --version
-
-      # -----------------------------------------------------------------------
       - name: Generate per-release notes (for GitHub Release body)
-        run: |
-          git-cliff --latest --strip header \
-            --output ${{ env.CHART_DIR }}/RELEASE_NOTES.md \
-            2>/dev/null \
-          || git log --oneline --no-merges -20 \
-               --pretty="* %s ([%h](https://github.com/${{ github.repository }}/commit/%H))" \
-               > ${{ env.CHART_DIR }}/RELEASE_NOTES.md
-          echo "── Release notes ──────────────────────────"
-          cat ${{ env.CHART_DIR }}/RELEASE_NOTES.md
-
-      # -----------------------------------------------------------------------
-      - name: Update cumulative CHANGELOG.md
-        run: |
-          git-cliff --output CHANGELOG.md 2>/dev/null \
-            || echo "# Changelog" > CHANGELOG.md
-          git add CHANGELOG.md
-          # Only commit when there are actual changes
-          git diff --cached --quiet \
-            || git commit -m "docs: update CHANGELOG.md [skip ci]"
-          git push origin HEAD:${{ github.ref_name }}
+        uses: orhun/git-cliff-action@v4
+        with:
+          args: --latest --strip header
+        env:
+          OUTPUT: ${{ env.CHART_DIR }}/RELEASE_NOTES.md
+          GITHUB_REPO: ${{ github.repository }}
 
       # -----------------------------------------------------------------------
       # Classic release: packages the chart, creates a GitHub Release, and

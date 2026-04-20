@@ -259,7 +259,7 @@ gotenberg:
   enabled: true
   image:
     repository: gotenberg/gotenberg
-    tag: "8.25"
+    tag: "8.31"
     pullPolicy: IfNotPresent
   service:
     port: 3000

@@ -35,6 +35,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Init Git config
+        run: git config user.email "github-action[bot]@users.noreply.github.com" && git config user.name "github-action[bot]"
+
       # -----------------------------------------------------------------------
       - name: Set up Helm
         uses: azure/setup-helm@v5

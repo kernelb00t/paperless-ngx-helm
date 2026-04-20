@@ -45,7 +45,7 @@ The chart is also published as an OCI artifact to the GitHub Container Registry:
 ```bash
 helm install my-paperless \
   oci://ghcr.io/kernelb00t/paperless-ngx \
-  --version 2.14.7-0 \
+  --version <version> \
   --set paperless.secrets.PAPERLESS_SECRET_KEY="$(openssl rand -hex 32)" \
   --set paperless.secrets.PAPERLESS_ADMIN_PASSWORD="strongpassword" \
   --namespace paperless \

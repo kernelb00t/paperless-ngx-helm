@@ -59,12 +59,14 @@ jobs:
       # -----------------------------------------------------------------------
       - name: Read chart metadata
         id: chart
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
           VERSION="$(yq '.version'    ${{ env.CHART_DIR }}/Chart.yaml)"
           APP_VERSION="$(yq '.appVersion' ${{ env.CHART_DIR }}/Chart.yaml)"
           # Allow manual override of the version
-          if [ -n "${{ inputs.version }}" ]; then
-            VERSION="${{ inputs.version }}"
+          if [ -n "${INPUT_VERSION}" ]; then
+            VERSION="${INPUT_VERSION}"
           fi
           echo "version=${VERSION}"         >> "$GITHUB_OUTPUT"
           echo "app_version=${APP_VERSION}" >> "$GITHUB_OUTPUT"

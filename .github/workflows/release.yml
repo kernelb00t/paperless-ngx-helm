@@ -75,9 +75,11 @@ jobs:
 
       # -----------------------------------------------------------------------
       - name: Install git-cliff
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           CLIFF_VERSION=$(curl -fsSL \
-            -H "Authorization: Bearer ${{ github.token }}" \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
             "https://api.github.com/repos/orhun/git-cliff/releases/latest" \
             | jq -r '.tag_name // "v2.6.1"' || echo "v2.6.1")
           echo "Installing git-cliff ${CLIFF_VERSION}"

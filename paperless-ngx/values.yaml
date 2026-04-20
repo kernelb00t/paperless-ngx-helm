@@ -189,7 +189,7 @@ cnpg:
   postgresVersion: 16
   image:
     repository: ghcr.io/cloudnative-pg/postgresql
-    tag: "16"
+    tag: "18"
   # -- Storage for primary + replicas
   storage:
     size: 10Gi

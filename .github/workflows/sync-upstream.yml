@@ -172,7 +172,7 @@ jobs:
           COMPOSE_REF = os.environ["COMPOSE_REF"]
           REF_EXISTS = os.environ.get("REF_EXISTS", "true").lower() == "true"
           # When the reference exists, any resolution problem must fail the run.
-          STRICT_ERROR_MODE = true
+          STRICT_ERROR_MODE = True
 
           def resolve_image_digest(repository, tag):
               """Uses crane to fetch the exact SHA256 digest of the image."""

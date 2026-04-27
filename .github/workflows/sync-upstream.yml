@@ -52,6 +52,10 @@ jobs:
           sudo chmod +x /usr/local/bin/yq
 
       # -----------------------------------------------------------------------
+      - name: Install crane
+        uses: imjasonh/setup-crane@v0.4
+
+      # -----------------------------------------------------------------------
       - name: Install Python dependencies
         run: pip install pyyaml -q
 
@@ -163,79 +167,30 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           python3 - <<'PYEOF'
-          import yaml, json, os, urllib.request
+          import yaml, json, os, subprocess
 
-          GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
           COMPOSE_REF = os.environ["COMPOSE_REF"]
           REF_EXISTS = os.environ.get("REF_EXISTS", "true").lower() == "true"
           # When the reference exists, any resolution problem must fail the run.
           STRICT_ERROR_MODE = REF_EXISTS
 
-          # Map docker-compose service name → GitHub owner/repo used to resolve
-          # non-pinned tags (e.g. 'latest') to their actual release version.
-          RESOLVE_LATEST_MAP = {
-              "tika": "apache/tika",
-          }
-
-          def resolve_latest_version(service, tag):
-              """If *tag* is not a pinned version, query GitHub Releases for the
-              actual version.  Returns the resolved version string, or the
-              original tag when resolution is not possible."""
-              if tag != "latest":
-                  return tag
-              if not GITHUB_TOKEN:
-                  msg = (
-                      f"GITHUB_TOKEN is not set; cannot resolve "
-                      f"'latest' for '{service}'. Set GITHUB_TOKEN to enable "
-                      "version resolution."
-                  )
-                  if STRICT_ERROR_MODE:
-                      raise RuntimeError(msg)
-                  print(f"::warning::{msg}", flush=True)
-                  return tag
-              github_repo = RESOLVE_LATEST_MAP.get(service)
-              if not github_repo:
-                  msg = (
-                      f"No resolver configured for '{service}' with "
-                      f"tag 'latest' – version will not be pinned."
-                  )
-                  if STRICT_ERROR_MODE:
-                      raise RuntimeError(msg)
-                  print(f"::warning::{msg}", flush=True)
-                  return tag
-              url = f"https://api.github.com/repos/{github_repo}/releases/latest"
-              headers = {
-                  "Authorization": f"Bearer {GITHUB_TOKEN}",
-                  "Accept": "application/vnd.github+json",
-                  # GitHub REST API uses date-based versioning; 2022-11-28 is
-                  # the current stable version (not an expiry date).
-                  "X-GitHub-Api-Version": "2022-11-28",
-              }
-              req = urllib.request.Request(url, headers=headers)
+          def resolve_image_digest(repository, tag):
+              """Uses crane to fetch the exact SHA256 digest of the image."""
+              image_ref = f"{repository}:{tag}"
               try:
-                  with urllib.request.urlopen(req, timeout=15) as resp:
-                      data = json.loads(resp.read())
-                  tag_name = data.get("tag_name", "")
-                  if not tag_name:
-                      msg = (
-                          f"GitHub Releases for '{github_repo}' "
-                          f"returned no tag_name."
-                      )
-                      if STRICT_ERROR_MODE:
-                          raise RuntimeError(msg)
-                      print(f"::warning::{msg}", flush=True)
-                      return tag
-                  version = tag_name.removeprefix("v")
-                  print(
-                      f"Resolved '{service}' latest → {version} (from {github_repo})",
-                      flush=True,
-                  )
-                  return version
+                  digest = subprocess.check_output(
+                      ["crane", "digest", image_ref],
+                      stderr=subprocess.STDOUT,
+                      text=True
+                  ).strip()
+                  if not digest.startswith("sha256:"):
+                      raise ValueError(f"Invalid digest format: {digest}")
+                  
+                  print(f"Resolved '{image_ref}' → {digest}", flush=True)
+                  return f"{tag}@{digest}"
               except Exception as exc:
-                  msg = (
-                      f"Failed to resolve latest version for "
-                      f"'{service}' via {github_repo}: {exc}"
-                  )
+                  output = getattr(exc, 'output', str(exc))
+                  msg = f"Failed to resolve digest for '{image_ref}' via crane: {output}"
                   if STRICT_ERROR_MODE:
                       raise RuntimeError(msg)
                   print(f"::warning::{msg}", flush=True)
@@ -253,8 +208,8 @@ jobs:
 
           # Map docker-compose service → (values.yaml image path, canonical repository)
           SERVICE_MAP = {
-              "broker":    ("redis.image",     "redis"),
-              "gotenberg": ("gotenberg.image", "gotenberg/gotenberg"),
+              "broker":    ("redis.image",     "docker.io/library/redis"),
+              "gotenberg": ("gotenberg.image", "docker.io/gotenberg/gotenberg"),
               "tika":      ("tika.image",      "docker.io/apache/tika"),
           }
 
@@ -266,7 +221,7 @@ jobs:
                   continue
               img = compose_images[svc]
               raw_tag = img.rsplit(":", 1)[1] if ":" in img else "latest"
-              tag = resolve_latest_version(svc, raw_tag)
+              tag = resolve_image_digest(norm_repo, raw_tag)
 
               # Navigate nested values dict
               parts = path.split(".")

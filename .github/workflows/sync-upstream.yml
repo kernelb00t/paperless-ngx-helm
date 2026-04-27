@@ -168,7 +168,7 @@ jobs:
           GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
           COMPOSE_REF = os.environ["COMPOSE_REF"]
           REF_EXISTS = os.environ.get("REF_EXISTS", "true").lower() == "true"
-          STRICT_MODE = REF_EXISTS
+          STRICT_ERROR_MODE = REF_EXISTS
 
           # Map docker-compose service name → GitHub owner/repo used to resolve
           # non-pinned tags (e.g. 'latest') to their actual release version.
@@ -185,9 +185,10 @@ jobs:
               if not GITHUB_TOKEN:
                   msg = (
                       f"GITHUB_TOKEN is not set; cannot resolve "
-                      f"'latest' for '{service}'."
+                      f"'latest' for '{service}'. Set GITHUB_TOKEN to enable "
+                      "version resolution."
                   )
-                  if STRICT_MODE:
+                  if STRICT_ERROR_MODE:
                       raise RuntimeError(msg)
                   print(f"::warning::{msg}", flush=True)
                   return tag
@@ -197,7 +198,7 @@ jobs:
                       f"No resolver configured for '{service}' with "
                       f"tag 'latest' – version will not be pinned."
                   )
-                  if STRICT_MODE:
+                  if STRICT_ERROR_MODE:
                       raise RuntimeError(msg)
                   print(f"::warning::{msg}", flush=True)
                   return tag
@@ -219,7 +220,7 @@ jobs:
                           f"GitHub Releases for '{github_repo}' "
                           f"returned no tag_name."
                       )
-                      if STRICT_MODE:
+                      if STRICT_ERROR_MODE:
                           raise RuntimeError(msg)
                       print(f"::warning::{msg}", flush=True)
                       return tag
@@ -234,7 +235,7 @@ jobs:
                       f"Failed to resolve latest version for "
                       f"'{service}' via {github_repo}: {exc}"
                   )
-                  if STRICT_MODE:
+                  if STRICT_ERROR_MODE:
                       raise RuntimeError(msg)
                   print(f"::warning::{msg}", flush=True)
                   return tag

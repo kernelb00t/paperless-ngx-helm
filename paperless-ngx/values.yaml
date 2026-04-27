@@ -225,8 +225,8 @@ cnpg:
 redis:
   enabled: true
   image:
-    repository: redis
-    tag: "8"
+    repository: docker.io/library/redis
+    tag: "8@sha256:832d7785830f3f4b559300e6191fc914b15642c1935252338825cf4332200148"
     pullPolicy: IfNotPresent
   service:
     port: 6379
@@ -258,8 +258,8 @@ redis:
 gotenberg:
   enabled: true
   image:
-    repository: gotenberg/gotenberg
-    tag: "8.25"
+    repository: docker.io/gotenberg/gotenberg
+    tag: "8.25@sha256:f9104080d9a7ecab253fb5ebe75100329cf5699c33ec0448f2ea02d885dfde4b"
     pullPolicy: IfNotPresent
   service:
     port: 3000
@@ -282,7 +282,7 @@ tika:
   enabled: true
   image:
     repository: docker.io/apache/tika
-    tag: "latest"
+    tag: "latest@sha256:2a565f1ea1290bdcb74a7d35957d16a989ed44ef98790dcdcc28121d728fa583"
     pullPolicy: IfNotPresent
   service:
     port: 9998

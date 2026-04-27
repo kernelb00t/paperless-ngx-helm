@@ -109,10 +109,14 @@ jobs:
           new_images = get_images(new_compose)
 
           if not os.path.exists(ref_path):
-              print("No reference file found – first-run initialisation only.", flush=True)
+              print(
+                  "No reference file found – bootstrapping from official compose.",
+                  flush=True,
+              )
               with open(os.environ["GITHUB_OUTPUT"], "a") as out:
-                  out.write("compose_changed=false\n")
+                  out.write("compose_changed=true\n")
                   out.write("only_image_versions=true\n")
+                  out.write("ref_exists=false\n")
                   out.write(f"compose_images={json.dumps(new_images)}\n")
               sys.exit(0)
 
@@ -135,8 +139,16 @@ jobs:
           with open(os.environ["GITHUB_OUTPUT"], "a") as out:
               out.write(f"compose_changed={'true' if compose_changed else 'false'}\n")
               out.write(f"only_image_versions={'true' if only_image_versions else 'false'}\n")
+              out.write("ref_exists=true\n")
               out.write(f"compose_images={json.dumps(new_images)}\n")
           PYEOF
+
+      # -----------------------------------------------------------------------
+      - name: Initialize missing upstream reference
+        if: steps.analyze.outputs.ref_exists == 'false'
+        run: |
+          mkdir -p "$(dirname "${{ env.COMPOSE_REF }}")"
+          cp /tmp/upstream-compose.yml "${{ env.COMPOSE_REF }}"
 
       # -----------------------------------------------------------------------
       # Computes which values.yaml / Chart.yaml fields actually need updating
@@ -146,12 +158,15 @@ jobs:
         env:
           NEW_APP_VERSION: ${{ steps.release.outputs.version }}
           COMPOSE_IMAGES: ${{ steps.analyze.outputs.compose_images }}
+          REF_EXISTS: ${{ steps.analyze.outputs.ref_exists }}
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           python3 - <<'PYEOF'
           import yaml, json, os, urllib.request
 
           GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
+          REF_EXISTS = os.environ.get("REF_EXISTS", "true").lower() == "true"
+          STRICT_MODE = REF_EXISTS
 
           # Map docker-compose service name → GitHub owner/repo used to resolve
           # non-pinned tags (e.g. 'latest') to their actual release version.
@@ -166,19 +181,23 @@ jobs:
               if tag != "latest":
                   return tag
               if not GITHUB_TOKEN:
-                  print(
-                      f"::warning::GITHUB_TOKEN is not set; cannot resolve "
-                      f"'latest' for '{service}'.",
-                      flush=True,
+                  msg = (
+                      f"GITHUB_TOKEN is not set; cannot resolve "
+                      f"'latest' for '{service}'."
                   )
+                  if STRICT_MODE:
+                      raise RuntimeError(msg)
+                  print(f"::warning::{msg}", flush=True)
                   return tag
               github_repo = RESOLVE_LATEST_MAP.get(service)
               if not github_repo:
-                  print(
-                      f"::warning::No resolver configured for '{service}' with "
-                      f"tag 'latest' – version will not be pinned.",
-                      flush=True,
+                  msg = (
+                      f"No resolver configured for '{service}' with "
+                      f"tag 'latest' – version will not be pinned."
                   )
+                  if STRICT_MODE:
+                      raise RuntimeError(msg)
+                  print(f"::warning::{msg}", flush=True)
                   return tag
               url = f"https://api.github.com/repos/{github_repo}/releases/latest"
               headers = {
@@ -194,11 +213,13 @@ jobs:
                       data = json.loads(resp.read())
                   tag_name = data.get("tag_name", "")
                   if not tag_name:
-                      print(
-                          f"::warning::GitHub Releases for '{github_repo}' "
-                          f"returned no tag_name.",
-                          flush=True,
+                      msg = (
+                          f"GitHub Releases for '{github_repo}' "
+                          f"returned no tag_name."
                       )
+                      if STRICT_MODE:
+                          raise RuntimeError(msg)
+                      print(f"::warning::{msg}", flush=True)
                       return tag
                   version = tag_name.removeprefix("v")
                   print(
@@ -207,11 +228,13 @@ jobs:
                   )
                   return version
               except Exception as exc:
-                  print(
-                      f"::warning::Failed to resolve latest version for "
-                      f"'{service}' via {github_repo}: {exc}",
-                      flush=True,
+                  msg = (
+                      f"Failed to resolve latest version for "
+                      f"'{service}' via {github_repo}: {exc}"
                   )
+                  if STRICT_MODE:
+                      raise RuntimeError(msg)
+                  print(f"::warning::{msg}", flush=True)
                   return tag
 
           with open("paperless-ngx/Chart.yaml") as f:
@@ -269,6 +292,12 @@ jobs:
                   new_ver = f"{current_ver}-1"
           else:
               new_ver = current_ver
+
+          if not REF_EXISTS:
+              changes.append(
+                  "- `upstream-reference`: bootstrap "
+                  "`.github/upstream/docker-compose.postgres-tika.yml`"
+              )
 
           has_changes = bool(changes)
 

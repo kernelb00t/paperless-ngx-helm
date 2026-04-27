@@ -158,6 +158,7 @@ jobs:
         env:
           NEW_APP_VERSION: ${{ steps.release.outputs.version }}
           COMPOSE_IMAGES: ${{ steps.analyze.outputs.compose_images }}
+          COMPOSE_REF: ${{ env.COMPOSE_REF }}
           REF_EXISTS: ${{ steps.analyze.outputs.ref_exists }}
           GITHUB_TOKEN: ${{ github.token }}
         run: |
@@ -165,6 +166,7 @@ jobs:
           import yaml, json, os, urllib.request
 
           GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
+          COMPOSE_REF = os.environ.get("COMPOSE_REF", ".github/upstream/docker-compose.postgres-tika.yml")
           REF_EXISTS = os.environ.get("REF_EXISTS", "true").lower() == "true"
           STRICT_MODE = REF_EXISTS
 
@@ -295,8 +297,7 @@ jobs:
 
           if not REF_EXISTS:
               changes.append(
-                  "- `upstream-reference`: bootstrap "
-                  "`.github/upstream/docker-compose.postgres-tika.yml`"
+                  f"- `upstream-reference`: bootstrap `{COMPOSE_REF}`"
               )
 
           has_changes = bool(changes)

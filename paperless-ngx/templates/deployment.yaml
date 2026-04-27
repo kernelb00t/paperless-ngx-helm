@@ -48,6 +48,17 @@ spec:
             - secretRef:
                 name: {{ include "paperless-ngx.secretName" . }}
           env:
+            # ---- Required secret env vars (fail-fast check) ----
+            - name: PAPERLESS_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "paperless-ngx.secretName" . }}
+                  key: PAPERLESS_SECRET_KEY
+            - name: PAPERLESS_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "paperless-ngx.secretName" . }}
+                  key: PAPERLESS_ADMIN_PASSWORD
             # ---- Database (PostgreSQL via CloudNativePG) ----
             {{- if .Values.cnpg.enabled }}
             - name: PAPERLESS_DBENGINE

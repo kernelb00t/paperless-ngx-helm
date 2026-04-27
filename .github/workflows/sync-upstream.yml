@@ -312,10 +312,10 @@ jobs:
               )
           PYEOF
 
-          # Update Chart.yaml
-          yq -i ".appVersion = \"${{ steps.compute.outputs.new_app_version }}\"" \
-            paperless-ngx/Chart.yaml
-          yq -i ".version = \"${{ steps.compute.outputs.new_chart_version }}\"" \
+          # Update Chart.yaml securely
+          NEW_APP_VERSION="${{ steps.compute.outputs.new_app_version }}" \
+          NEW_CHART_VERSION="${{ steps.compute.outputs.new_chart_version }}" \
+          yq -i '.appVersion = env(NEW_APP_VERSION) | .version = env(NEW_CHART_VERSION)' \
             paperless-ngx/Chart.yaml
 
           # Refresh the reference snapshot when the compose itself changed

@@ -44,6 +44,9 @@ spec:
             - name: http
               containerPort: 8000
               protocol: TCP
+          envFrom:
+            - secretRef:
+                name: {{ include "paperless-ngx.secretName" . }}
           env:
             # ---- Database (PostgreSQL via CloudNativePG) ----
             {{- if .Values.cnpg.enabled }}
@@ -93,37 +96,7 @@ spec:
                   name: {{ include "paperless-ngx.fullname" $ }}-config
                   key: {{ $key }}
             {{- end }}
-            # ---- Secret env vars ----
-            {{- if not .Values.paperless.existingSecret }}
-            - name: PAPERLESS_SECRET_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "paperless-ngx.secretName" . }}
-                  key: PAPERLESS_SECRET_KEY
-            - name: PAPERLESS_ADMIN_USER
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "paperless-ngx.secretName" . }}
-                  key: PAPERLESS_ADMIN_USER
-            - name: PAPERLESS_ADMIN_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "paperless-ngx.secretName" . }}
-                  key: PAPERLESS_ADMIN_PASSWORD
-            - name: PAPERLESS_ADMIN_MAIL
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "paperless-ngx.secretName" . }}
-                  key: PAPERLESS_ADMIN_MAIL
-            {{- else }}
-            {{- range $key := list "PAPERLESS_SECRET_KEY" "PAPERLESS_ADMIN_USER" "PAPERLESS_ADMIN_PASSWORD" "PAPERLESS_ADMIN_MAIL" }}
-            - name: {{ $key }}
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "paperless-ngx.secretName" $ }}
-                  key: {{ $key }}
-            {{- end }}
-            {{- end }}
+
             # ---- Extra env vars ----
             {{- with .Values.paperless.extraEnv }}
             {{- toYaml . | nindent 12 }}

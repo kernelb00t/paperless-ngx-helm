@@ -166,7 +166,7 @@ jobs:
           import yaml, json, os, urllib.request
 
           GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
-          COMPOSE_REF = os.environ.get("COMPOSE_REF", ".github/upstream/docker-compose.postgres-tika.yml")
+          COMPOSE_REF = os.environ["COMPOSE_REF"]
           REF_EXISTS = os.environ.get("REF_EXISTS", "true").lower() == "true"
           STRICT_MODE = REF_EXISTS
 

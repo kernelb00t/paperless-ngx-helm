@@ -7,7 +7,7 @@ type: application
 # Chart version follows the pattern <appVersion>-<chart-patch> so that the
 # chart can be updated independently of Paperless-NGX releases.
 # Bump the chart-patch suffix (e.g. 2.14.7-1) for chart-only changes.
-version: 2.20.15-1
+version: 2.20.15-2
 appVersion: "2.20.15"
 keywords:
   - paperless

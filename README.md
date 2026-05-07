@@ -3,6 +3,9 @@
 Helm chart to deploy [Paperless-NGX](https://github.com/paperless-ngx/paperless-ngx) on Kubernetes,
 always tracking the latest release.
 
+> Note: This repo is kept up to date automatically. I am not your developper, so I will not implement changes for you. If you need something I will happily check your code and merge it!
+> Issues are there to discuss changes before creating a PR, not to ask for something to be done.
+
 ## Components
 
 | Component | Default image | Purpose |

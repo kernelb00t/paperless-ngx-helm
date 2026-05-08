@@ -1,18 +1,13 @@
 name: Release Chart
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Trigger: manual only for now.
-# Uncomment the `push` block below to auto-release whenever Chart.yaml
-# is changed on `main` (e.g. after the sync-upstream PR is merged).
-# ─────────────────────────────────────────────────────────────────────────────
 on:
   workflow_dispatch:
-
-  # push:
-  #   branches:
-  #     - main
-  #   paths:
-  #     - "paperless-ngx/Chart.yaml"
+  push:
+    branches:
+      - master
+    paths:
+      - "paperless-ngx/Chart.yaml"
+      - "paperless-ngx/Chart.yml"
 
 permissions:
   contents: write   # create GitHub Releases and push gh-pages branch
@@ -23,10 +18,50 @@ env:
   OCI_REGISTRY: ghcr.io
 
 jobs:
+  detect-release-change:
+    name: Detect release trigger
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.filter.outputs.should_release }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Check if chart version changed
+        id: filter
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          BEFORE="${{ github.event.before }}"
+          AFTER="${{ github.sha }}"
+          EMPTY_BEFORE="0000000000000000000000000000000000000000"
+
+          if [ "$BEFORE" = "$EMPTY_BEFORE" ]; then
+            BEFORE="$(git rev-parse "${AFTER}^" 2>/dev/null || true)"
+          fi
+
+          if [ -z "$BEFORE" ]; then
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if git diff --unified=0 "$BEFORE" "$AFTER" -- paperless-ngx/Chart.yaml paperless-ngx/Chart.yml | grep -Eq '^[+-][[:space:]]*version:[[:space:]]'; then
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+          fi
+
   # ───────────────────────────────────────────────────────────────────────────
   release:
     name: Package · Release · Publish OCI
     runs-on: ubuntu-latest
+    needs: detect-release-change
+    if: needs.detect-release-change.outputs.should_release == 'true'
 
     steps:
       # -----------------------------------------------------------------------

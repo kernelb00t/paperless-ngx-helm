@@ -43,15 +43,12 @@ jobs:
           EMPTY_BEFORE="0000000000000000000000000000000000000000"
 
           if [ "$BEFORE" = "$EMPTY_BEFORE" ]; then
-            BEFORE="$(git rev-parse "${AFTER}^" 2>/dev/null || true)"
+            CHART_DIFF="$(git show --unified=0 "$AFTER" -- paperless-ngx/Chart.yaml paperless-ngx/Chart.yml)"
+          else
+            CHART_DIFF="$(git diff --unified=0 "$BEFORE" "$AFTER" -- paperless-ngx/Chart.yaml paperless-ngx/Chart.yml)"
           fi
 
-          if [ -z "$BEFORE" ]; then
-            echo "should_release=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          if git diff --unified=0 "$BEFORE" "$AFTER" -- paperless-ngx/Chart.yaml paperless-ngx/Chart.yml | grep -Eq '^\+[[:space:]]*version:[[:space:]]'; then
+          if printf "%s\n" "$CHART_DIFF" | grep -Eq '^\+[[:space:]]*version:'; then
             echo "should_release=true" >> "$GITHUB_OUTPUT"
           else
             echo "should_release=false" >> "$GITHUB_OUTPUT"

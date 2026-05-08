@@ -4,6 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
+      - main
       - master
     paths:
       - "paperless-ngx/Chart.yaml"
@@ -50,7 +51,7 @@ jobs:
             exit 0
           fi
 
-          if git diff --unified=0 "$BEFORE" "$AFTER" -- paperless-ngx/Chart.yaml paperless-ngx/Chart.yml | grep -Eq '^[+-][[:space:]]*version:[[:space:]]'; then
+          if git diff --unified=0 "$BEFORE" "$AFTER" -- paperless-ngx/Chart.yaml paperless-ngx/Chart.yml | grep -Eq '^\+[[:space:]]*version:[[:space:]]'; then
             echo "should_release=true" >> "$GITHUB_OUTPUT"
           else
             echo "should_release=false" >> "$GITHUB_OUTPUT"

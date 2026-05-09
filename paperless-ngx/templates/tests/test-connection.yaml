@@ -14,10 +14,12 @@ spec:
       args:
         - >
           attempts=0;
+          max_attempts=30;
+          retry_interval_seconds=2;
           until wget -q -O /dev/null "{{ include "paperless-ngx.fullname" . }}:{{ .Values.paperless.service.port }}/api/";
           do
             attempts=$((attempts+1));
-            [ "$attempts" -ge 30 ] && exit 1;
-            sleep 2;
+            [ "$attempts" -ge "$max_attempts" ] && exit 1;
+            sleep "$retry_interval_seconds";
           done
   restartPolicy: Never

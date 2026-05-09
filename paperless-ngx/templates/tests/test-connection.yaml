@@ -20,7 +20,7 @@ spec:
           attempts=0;
           max_attempts={{ .Values.tests.connection.maxAttempts }};
           retry_interval_seconds={{ .Values.tests.connection.retryIntervalSeconds }};
-          until wget -q -O /dev/null "http://{{ include "paperless-ngx.fullname" . }}:{{ .Values.paperless.service.port }}/api/";
+          until wget -q -Y off -O /dev/null "http://{{ include "paperless-ngx.fullname" . }}:{{ .Values.paperless.service.port }}/api/";
           do
             attempts=$((attempts+1));
             [ "$attempts" -ge "$max_attempts" ] && exit 1;

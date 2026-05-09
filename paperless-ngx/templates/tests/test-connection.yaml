@@ -10,6 +10,14 @@ spec:
   containers:
     - name: wget
       image: busybox
-      command: ['wget']
-      args: ['{{ include "paperless-ngx.fullname" . }}:{{ .Values.paperless.service.port }}/api/']
+      command: ['sh', '-ec']
+      args:
+        - >
+          i=0;
+          until wget -q -O /dev/null "{{ include "paperless-ngx.fullname" . }}:{{ .Values.paperless.service.port }}/api/";
+          do
+            i=$((i+1));
+            [ "$i" -ge 30 ] && exit 1;
+            sleep 2;
+          done
   restartPolicy: Never

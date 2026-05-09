@@ -190,23 +190,23 @@ jobs:
         if: failure()
         run: |
           echo "=== Pod status ==="
-          kubectl get pods --namespace paperless-test -o wide
+          kubectl get pods --namespace paperless-test -o wide | tee pod-status.log
 
           echo "=== Recent events ==="
           kubectl get events --namespace paperless-test \
-            --sort-by='.lastTimestamp' | tail -40
+            --sort-by='.lastTimestamp' | tail -40 | tee events.log
 
           echo "=== Paperless-NGX logs ==="
           kubectl logs deployment/paperless-ngx \
-            --namespace paperless-test --tail=200 || true
+            --namespace paperless-test --tail=200 | tee paperless.log || true
 
           echo "=== Redis logs ==="
           kubectl logs deployment/paperless-ngx-redis \
-            --namespace paperless-test --tail=50 || true
+            --namespace paperless-test --tail=50 | tee redis.log || true
 
           echo "=== CNPG cluster status ==="
           kubectl describe cluster/paperless-ngx-postgres \
-            --namespace paperless-test || true
+            --namespace paperless-test | tee cnpg-cluster.log || true
 
       - name: Upload diagnostics on failure
         if: failure()
@@ -214,6 +214,9 @@ jobs:
         with:
           name: k8s-diagnostics
           path: |
-            *.log
-            kube-linter.sarif
+            pod-status.log
+            events.log
+            paperless.log
+            redis.log
+            cnpg-cluster.log
           retention-days: 5

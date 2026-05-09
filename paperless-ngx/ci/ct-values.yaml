@@ -1,25 +1,9 @@
-# CI-only values – do NOT use in production.
-# These provide the minimum required configuration to install the chart in KinD
-# with small storage sizes to keep test runs fast.
-#
-# NOTE: The secret values below are static placeholders that allow `ct lint`
-# (a static check) to pass validation.  For the actual integration test the
-# CI workflow overrides PAPERLESS_SECRET_KEY and PAPERLESS_ADMIN_PASSWORD with
-# freshly generated random values via `--set` flags, so no real credentials
-# ever leave the runner.
-
 paperless:
-  secrets:
-    PAPERLESS_SECRET_KEY: "ci-test-secret-key-do-not-use-in-production-only-for-helm-testing"
-    PAPERLESS_ADMIN_USER: "admin"
-    PAPERLESS_ADMIN_PASSWORD: "ci-admin-password-do-not-use-in-production"
-    PAPERLESS_ADMIN_MAIL: "admin@ci.example.com"
   config:
-    PAPERLESS_URL: "http://localhost:8000"
-    PAPERLESS_TIME_ZONE: "UTC"
-    PAPERLESS_OCR_LANGUAGE: "eng"
     PAPERLESS_TASK_WORKERS: "1"
-    PAPERLESS_TIKA_ENABLED: "1"
+  secrets:
+    PAPERLESS_SECRET_KEY: "superlongtestingkeyforcideployment,butwhatalongtestingkeyihopethisbuilddoespass"
+    PAPERLESS_ADMIN_PASSWORD: "strongadminpasswordthatisstrongerthantherock"
 
 persistence:
   data:
@@ -34,7 +18,3 @@ persistence:
 cnpg:
   storage:
     size: 1Gi
-
-redis:
-  persistence:
-    enabled: false

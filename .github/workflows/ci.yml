@@ -33,6 +33,7 @@ jobs:
               - "ct.yaml"
               - ".github/workflows/ci.yml"
 
+
   # ---------------------------------------------------------------------------
   # Job 1 – Lint: static validation without a running cluster
   # ---------------------------------------------------------------------------
@@ -125,12 +126,19 @@ jobs:
           kubectl rollout status deployment/paperless-ngx \
             --namespace paperless-test --timeout=10m
 
-      - name: Run Helm tests (connectivity checks)
+      - name: Run Helm tests
         run: |
           helm test paperless-ngx \
             --namespace paperless-test \
-            --timeout 5m \
-            --logs
+            --timeout 5m
+
+      - name: Smoke test (HTTP GET)
+        run: |
+          # Get the service URL (KinD cluster, so we use kubectl port-forward or just curl from within the cluster)
+          # We'll use a temporary pod to curl the service to avoid port-forwarding complexity in CI
+          kubectl run smoke-test --rm -i --restart=Never --image=curlimages/curl --namespace paperless-test -- \
+            curl -sSL -o /dev/null -w "%{http_code}" http://paperless-ngx:8000/api/ \
+            | grep -E "200|302"
 
       - name: Check Paperless-NGX logs for errors
         run: |
@@ -174,3 +182,13 @@ jobs:
           echo "=== CNPG cluster status ==="
           kubectl describe cluster/paperless-ngx-postgres \
             --namespace paperless-test || true
+
+      - name: Upload diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: k8s-diagnostics
+          path: |
+            *.log
+            kube-linter.sarif
+          retention-days: 5

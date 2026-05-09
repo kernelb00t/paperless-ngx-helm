@@ -13,11 +13,11 @@ spec:
       command: ['sh', '-ec']
       args:
         - >
-          i=0;
+          attempts=0;
           until wget -q -O /dev/null "{{ include "paperless-ngx.fullname" . }}:{{ .Values.paperless.service.port }}/api/";
           do
-            i=$((i+1));
-            [ "$i" -ge 30 ] && exit 1;
+            attempts=$((attempts+1));
+            [ "$attempts" -ge 30 ] && exit 1;
             sleep 2;
           done
   restartPolicy: Never

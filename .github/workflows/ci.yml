@@ -198,15 +198,15 @@ jobs:
 
           echo "=== Paperless-NGX logs ==="
           kubectl logs deployment/paperless-ngx \
-            --namespace paperless-test --tail=200 | tee paperless.log || true
+            --namespace paperless-test --tail=200 2>&1 | tee paperless.log || true
 
           echo "=== Redis logs ==="
           kubectl logs deployment/paperless-ngx-redis \
-            --namespace paperless-test --tail=50 | tee redis.log || true
+            --namespace paperless-test --tail=50 2>&1 | tee redis.log || true
 
           echo "=== CNPG cluster status ==="
           kubectl describe cluster/paperless-ngx-postgres \
-            --namespace paperless-test | tee cnpg-cluster.log || true
+            --namespace paperless-test 2>&1 | tee cnpg-cluster.log || true
 
       - name: Upload diagnostics on failure
         if: failure()

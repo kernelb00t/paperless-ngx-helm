@@ -14,8 +14,8 @@ spec:
       args:
         - >
           attempts=0;
-          max_attempts=30;
-          retry_interval_seconds=2;
+          max_attempts={{ .Values.tests.connection.maxAttempts }};
+          retry_interval_seconds={{ .Values.tests.connection.retryIntervalSeconds }};
           until wget -q -O /dev/null "{{ include "paperless-ngx.fullname" . }}:{{ .Values.paperless.service.port }}/api/";
           do
             attempts=$((attempts+1));

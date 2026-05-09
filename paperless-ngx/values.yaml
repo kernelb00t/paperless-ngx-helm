@@ -298,3 +298,10 @@ tika:
   nodeSelector: {}
   tolerations: []
   affinity: {}
+# ---------------------------------------------------------------------------
+# Helm test pod configuration
+# ---------------------------------------------------------------------------
+tests:
+  connection:
+    maxAttempts: 30
+    retryIntervalSeconds: 2

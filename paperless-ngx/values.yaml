@@ -305,3 +305,4 @@ tests:
   connection:
     maxAttempts: 30
     retryIntervalSeconds: 2
+    podLabels: {}

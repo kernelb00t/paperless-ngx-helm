@@ -4,6 +4,10 @@ metadata:
   name: "{{ include "paperless-ngx.fullname" . }}-test-connection"
   labels:
     {{- include "paperless-ngx.labels" . | nindent 4 }}
+    app.kubernetes.io/component: test
+    {{- with .Values.tests.connection.podLabels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
   annotations:
     "helm.sh/hook": test
 spec:

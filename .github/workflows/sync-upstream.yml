@@ -251,7 +251,13 @@ jobs:
               changes.append(f"- `paperless-ngx`: `{current_app}` → `{new_app}`")
 
           if paperless_changed or changes:
-              major, minor, patch = parse_semver(current_ver)
+              try:
+                  major, minor, patch = parse_semver(current_ver)
+              except ValueError as exc:
+                  raise RuntimeError(
+                      "Invalid current chart version in paperless-ngx/Chart.yaml: "
+                      f"{exc}"
+                  ) from exc
               if paperless_changed:
                   minor += 1
                   patch = 0

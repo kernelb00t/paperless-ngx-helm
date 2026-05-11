@@ -156,7 +156,7 @@ jobs:
 
       # -----------------------------------------------------------------------
       # Computes which values.yaml / Chart.yaml fields actually need updating
-      # and calculates the new chart version.
+      # and calculates the new chart version (independent SemVer).
       - name: Compute required changes
         id: compute
         env:
@@ -202,9 +202,18 @@ jobs:
               values = yaml.safe_load(f)
 
           current_app = chart["appVersion"]
-          current_ver = chart["version"]
+          current_ver = str(chart["version"])
           new_app = os.environ["NEW_APP_VERSION"]
           compose_images = json.loads(os.environ["COMPOSE_IMAGES"])
+
+          def parse_semver(version):
+              parts = version.split(".")
+              if len(parts) != 3 or any(not p.isdigit() for p in parts):
+                  raise ValueError(
+                      f"Chart version '{version}' is not strict SemVer (x.y.z). "
+                      f"Found {len(parts)} dot-separated part(s): {parts}"
+                  )
+              return tuple(int(p) for p in parts)
 
           # Map docker-compose service → (values.yaml image path, canonical repository)
           SERVICE_MAP = {
@@ -241,14 +250,20 @@ jobs:
           if paperless_changed:
               changes.append(f"- `paperless-ngx`: `{current_app}` → `{new_app}`")
 
-          if paperless_changed:
-              new_ver = f"{new_app}-0"
-          elif changes:
-              if "-" in current_ver:
-                  base, patch = current_ver.rsplit("-", 1)
-                  new_ver = f"{base}-{int(patch) + 1}"
+          if paperless_changed or changes:
+              try:
+                  major, minor, patch = parse_semver(current_ver)
+              except ValueError as exc:
+                  raise RuntimeError(
+                      "Invalid current chart version in paperless-ngx/Chart.yaml: "
+                      f"{exc}"
+                  ) from exc
+              if paperless_changed:
+                  minor += 1
+                  patch = 0
               else:
-                  new_ver = f"{current_ver}-1"
+                  patch += 1
+              new_ver = f"{major}.{minor}.{patch}"
           else:
               new_ver = current_ver
 

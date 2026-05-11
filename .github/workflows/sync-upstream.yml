@@ -210,7 +210,8 @@ jobs:
               parts = version.split(".")
               if len(parts) != 3 or any(not p.isdigit() for p in parts):
                   raise ValueError(
-                      f"Chart version '{version}' is not strict SemVer (x.y.z)."
+                      f"Chart version '{version}' is not strict SemVer (x.y.z). "
+                      f"Found {len(parts)} dot-separated part(s): {parts}"
                   )
               return tuple(int(p) for p in parts)
 

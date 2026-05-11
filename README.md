@@ -186,6 +186,12 @@ commits by [git-cliff](https://git-cliff.org) on each release.
 Releases are triggered manually via the **Release Chart** GitHub Actions workflow
 (`Actions → Release Chart → Run workflow`).
 
+Chart versioning policy:
+- `appVersion` follows upstream Paperless-NGX versions.
+- `version` is independent and strict SemVer (`x.y.z`), starting at `1.0.0`.
+- Automated upstream appVersion bumps increment chart **minor**.
+- Other chart updates increment chart **patch**.
+
 > **Note (GitHub Pages):** For the Helm repository to work, GitHub Pages must be
 > enabled in the repository settings and configured to deploy from the `gh-pages`
 > branch:

@@ -42,6 +42,6 @@ commit_parsers = [
 protect_breaking_commits = false
 filter_commits = false
 # Tags created by helm/chart-releaser follow the pattern: <chart-name>-<version>
-# e.g. paperless-ngx-2.14.7-0
+# e.g. paperless-ngx-1.0.0
 tag_pattern = "paperless-ngx-[0-9].*"
 sort_commits = "oldest"

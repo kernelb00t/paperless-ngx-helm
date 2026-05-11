@@ -130,6 +130,31 @@ ingress:
   #   hosts:
   #     - paperless.example.com
 # ---------------------------------------------------------------------------
+# Gateway API / HTTPRoute
+# ---------------------------------------------------------------------------
+httpRoute:
+  enabled: false
+  annotations: {}
+  parentRefs:
+    - name: gateway
+      sectionName: http
+      # namespace: default
+  hostnames:
+    - paperless.example.com
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      # filters:
+      #   - type: RequestHeaderModifier
+      #     requestHeaderModifier:
+      #       set:
+      #         - name: My-Overwrite-Header
+      #           value: this-is-the-only-value
+      #       remove:
+      #         - User-Agent
+# ---------------------------------------------------------------------------
 # Persistent Volume Claims
 # ---------------------------------------------------------------------------
 persistence:
@@ -190,10 +215,12 @@ cnpg:
   image:
     repository: ghcr.io/cloudnative-pg/postgresql
     tag: "18"
+  inheritedMetadata: {}
   # -- Storage for primary + replicas
   storage:
     size: 10Gi
     storageClass: ""
+  walSegmentSize: ""
   # -- WAL storage (when empty, WAL is kept in the data volume)
   walStorage:
     enabled: false
@@ -230,8 +257,13 @@ redis:
     pullPolicy: IfNotPresent
   service:
     port: 6379
+  networkPolicy:
+    enabled: true
   # -- Optional Redis password (leave empty for no auth)
   password: ""
+  passwordSecretKeyRef:
+    name: ""
+    key: password
   persistence:
     enabled: false
     storageClass: ""
@@ -263,6 +295,8 @@ gotenberg:
     pullPolicy: IfNotPresent
   service:
     port: 3000
+  networkPolicy:
+    enabled: true
   resources: {}
   podSecurityContext: {}
   securityContext:
@@ -286,6 +320,8 @@ tika:
     pullPolicy: IfNotPresent
   service:
     port: 9998
+  networkPolicy:
+    enabled: true
   resources: {}
   podSecurityContext: {}
   securityContext:
@@ -298,3 +334,7 @@ tika:
   nodeSelector: {}
   tolerations: []
   affinity: {}
+# ---------------------------------------------------------------------------
+# Misc
+# ---------------------------------------------------------------------------
+extraObjects: []

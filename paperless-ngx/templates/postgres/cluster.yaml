@@ -11,6 +11,11 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
+  {{- with .Values.cnpg.inheritedMetadata }}
+  inheritedMetadata:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+
   instances: {{ .Values.cnpg.instances }}
 
   imageName: "{{ .Values.cnpg.image.repository }}:{{ .Values.cnpg.image.tag }}"
@@ -23,6 +28,9 @@ spec:
       {{- if .Values.cnpg.superuserSecret }}
       secret:
         name: {{ .Values.cnpg.superuserSecret }}
+      {{- end }}
+      {{- with .Values.cnpg.walSegmentSize }}
+      walSegmentSize: {{ . }}
       {{- end }}
 
   storage:

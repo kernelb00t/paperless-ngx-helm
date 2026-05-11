@@ -1,0 +1,27 @@
+{{- if and .Values.gotenberg.enabled .Values.gotenberg.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "paperless-ngx.fullname" . }}-gotenberg
+  labels:
+    {{- include "paperless-ngx.labels" . | nindent 4 }}
+    app.kubernetes.io/component: gotenberg
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "paperless-ngx.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: gotenberg
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: {{ include "paperless-ngx.name" . }}
+              app.kubernetes.io/instance: {{ .Release.Name }}
+              app.kubernetes.io/component: paperless
+      ports:
+        - protocol: TCP
+          port: http
+{{- end }}

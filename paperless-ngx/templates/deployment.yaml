@@ -81,13 +81,20 @@ spec:
                   key: password
             {{- end }}
             # ---- Redis ----
+            {{- if and .Values.redis.enabled (or .Values.redis.passwordSecretKeyRef.name .Values.redis.password) }}
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  {{- if .Values.redis.passwordSecretKeyRef.name }}
+                  {{- toYaml .Values.redis.passwordSecretKeyRef | nindent 18 }}
+                  {{- else }}
+                  name: {{ include "paperless-ngx.fullname" . }}-redis
+                  key: password
+                  {{- end }}
+            {{- end }}
             {{- if .Values.redis.enabled }}
             - name: PAPERLESS_REDIS
-              {{- if .Values.redis.password }}
-              value: {{ printf "redis://:%s@%s:%d/0" .Values.redis.password (include "paperless-ngx.redisServiceName" .) (int .Values.redis.service.port) | quote }}
-              {{- else }}
-              value: {{ printf "redis://%s:%d/0" (include "paperless-ngx.redisServiceName" .) (int .Values.redis.service.port) | quote }}
-              {{- end }}
+              value: {{ include "paperless-ngx.redisUrl" . | quote }}
             {{- end }}
             # ---- Gotenberg ----
             {{- if .Values.gotenberg.enabled }}

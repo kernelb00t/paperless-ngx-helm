@@ -37,7 +37,7 @@ spec:
             - name: redis
               containerPort: {{ .Values.redis.service.port }}
               protocol: TCP
-          {{- if .Values.redis.password }}
+          {{- if or .Values.redis.passwordSecretKeyRef.name .Values.redis.password }}
           args:
             - "--requirepass"
             - "$(REDIS_PASSWORD)"
@@ -45,8 +45,12 @@ spec:
             - name: REDIS_PASSWORD
               valueFrom:
                 secretKeyRef:
+                  {{- if .Values.redis.passwordSecretKeyRef.name }}
+                  {{- toYaml .Values.redis.passwordSecretKeyRef | nindent 18 }}
+                  {{- else }}
                   name: {{ include "paperless-ngx.fullname" . }}-redis
                   key: password
+                  {{- end }}
           {{- end }}
           livenessProbe:
             tcpSocket:

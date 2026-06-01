@@ -53,7 +53,7 @@ jobs:
 
       # -----------------------------------------------------------------------
       - name: Install crane
-        uses: imjasonh/setup-crane@v0.5
+        uses: imjasonh/setup-crane@v0.6
 
       # -----------------------------------------------------------------------
       - name: Install Python dependencies

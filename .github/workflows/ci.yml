@@ -22,7 +22,7 @@ jobs:
       run_ci: ${{ steps.filter.outputs.run_ci }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Check changed paths
         id: filter
@@ -44,7 +44,7 @@ jobs:
     if: needs.changes.outputs.run_ci == 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Scan chart with kube-linter
         uses: stackrox/kube-linter-action@v1
@@ -70,7 +70,7 @@ jobs:
     if: needs.changes.outputs.run_ci == 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -105,7 +105,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 

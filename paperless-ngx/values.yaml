@@ -253,7 +253,7 @@ redis:
   enabled: true
   image:
     repository: docker.io/library/redis
-    tag: "8@sha256:2838d5524559494f6f1cd66e97e76b200d64a633a8614200620755ed395daf32"
+    tag: "8@sha256:e24be9c810185d280b7246dfaa3afe2e92735a2495a2fdc9dcdfdd8c85fa8cd6"
     pullPolicy: IfNotPresent
   service:
     port: 6379

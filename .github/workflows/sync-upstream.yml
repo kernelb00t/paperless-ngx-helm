@@ -217,7 +217,7 @@ jobs:
 
           # Map docker-compose service → (values.yaml image path, canonical repository)
           SERVICE_MAP = {
-              "broker":    ("redis.image",     "docker.io/library/redis"),
+              "broker":    ("redis.image",     "docker.io/valkey/valkey"),
               "gotenberg": ("gotenberg.image", "docker.io/gotenberg/gotenberg"),
               "tika":      ("tika.image",      "docker.io/apache/tika"),
           }

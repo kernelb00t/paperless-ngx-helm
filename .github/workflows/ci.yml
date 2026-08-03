@@ -85,7 +85,7 @@ jobs:
       - name: Set up chart-testing
         uses: helm/chart-testing-action@v2
         with:
-          version: 3.13.0
+          version: 3.14.0
 
       - name: Render chart templates
         run: |

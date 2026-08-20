@@ -1,14 +1,15 @@
 apiVersion: v2
 name: paperless-ngx
 description: >
-  A fully-featured Helm chart for Paperless-NGX with PostgreSQL (CloudNativePG), Redis, Gotenberg and Tika.
+  A fully-featured Helm chart for Paperless-NGX with PostgreSQL (CloudNativePG), Redis,
+  Gotenberg and Tika.
 
 type: application
 # Chart version is independent from appVersion and follows SemVer (x.y.z).
 # Policy:
 # - appVersion updates (upstream Paperless-NGX) bump chart MINOR.
 # - other chart-only updates bump chart PATCH.
-version: 1.1.0
+version: 1.1.1
 appVersion: "3.0.5"
 keywords:
   - paperless

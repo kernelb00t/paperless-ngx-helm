@@ -3,6 +3,27 @@ entries:
   paperless-ngx:
   - apiVersion: v2
     appVersion: 3.0.5
+    created: "2026-08-20T06:41:08.60359723Z"
+    description: 'A fully-featured Helm chart for Paperless-NGX with PostgreSQL (CloudNativePG),
+      Redis, Gotenberg and Tika. '
+    digest: da189c505219c226d41bccd93d89f88ae2a18cdb23a804ff6b806b036c417b0e
+    home: https://github.com/paperless-ngx/paperless-ngx
+    icon: https://raw.githubusercontent.com/paperless-ngx/paperless-ngx/main/docs/assets/favicon.png
+    keywords:
+    - paperless
+    - document-management
+    - dms
+    maintainers:
+    - name: kernelb00t
+    name: paperless-ngx
+    sources:
+    - https://github.com/paperless-ngx/paperless-ngx
+    type: application
+    urls:
+    - https://github.com/kernelb00t/paperless-ngx-helm/releases/download/paperless-ngx-1.1.1/paperless-ngx-1.1.1.tgz
+    version: 1.1.1
+  - apiVersion: v2
+    appVersion: 3.0.5
     created: "2026-08-03T11:13:10.269464776Z"
     description: 'A fully-featured Helm chart for Paperless-NGX with PostgreSQL (CloudNativePG),
       Redis, Gotenberg and Tika. '
@@ -274,4 +295,4 @@ entries:
     urls:
     - https://github.com/kernelb00t/paperless-ngx-helm/releases/download/paperless-ngx-1.0.0/paperless-ngx-1.0.0.tgz
     version: 1.0.0
-generated: "2026-08-03T11:13:10.269621329Z"
+generated: "2026-08-20T06:41:08.603665556Z"

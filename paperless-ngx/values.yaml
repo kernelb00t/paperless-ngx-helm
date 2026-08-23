@@ -316,7 +316,7 @@ tika:
   enabled: true
   image:
     repository: docker.io/apache/tika
-    tag: "latest@sha256:a8b442501f601fb15015de974f9afe13dd242b0f14e49a2b144fadcb214a555b"
+    tag: "3.3.1.0@sha256:90b7fa1dc018434075fce9e1d9b88b1e3d0ea6979d0cf86e116c79a8073ae973"
     pullPolicy: IfNotPresent
   service:
     port: 9998

@@ -117,7 +117,7 @@ jobs:
       - name: Create KinD cluster
         uses: helm/kind-action@v1
         with:
-          version: v0.30.0
+          version: v0.33.0
 
       - name: Install CloudNativePG operator
         run: |

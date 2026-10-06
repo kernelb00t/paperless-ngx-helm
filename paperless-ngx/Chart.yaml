@@ -8,8 +8,8 @@ type: application
 # Policy:
 # - appVersion updates (upstream Paperless-NGX) bump chart MINOR.
 # - other chart-only updates bump chart PATCH.
-version: 1.7.0
-appVersion: "3.2.1"
+version: 1.8.0
+appVersion: "3.3.0"
 keywords:
   - paperless
   - document-management

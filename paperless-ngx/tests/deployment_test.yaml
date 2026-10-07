@@ -257,3 +257,10 @@ tests:
     asserts:
       - notExists:
           path: spec.template.metadata.annotations["checksum/redis-secret"]
+
+  - it: tolerates null podAnnotations
+    set:
+      paperless.podAnnotations: null
+    asserts:
+      - exists:
+          path: spec.template.metadata.annotations["checksum/config"]

@@ -71,7 +71,13 @@ create_tag() {
     -d "{\"name\": \"${TAG}\"}" "${BASE}/api/tags/" >/dev/null
 }
 
-tag_count() { api "${BASE}/api/tags/?name__iexact=${TAG}" | jq -e '.count'; }
+# Prints the count only on success, so output from failed attempts is never
+# captured by `count="$(retry tag_count)"`.
+tag_count() {
+  local n
+  n="$(api "${BASE}/api/tags/?name__iexact=${TAG}" | jq -er '.count')" || return 1
+  printf '%s' "$n"
+}
 
 retry probe_api || { echo "::error::Paperless did not answer on /api/"; exit 1; }
 retry probe_auth || { echo "::error::Authenticated API call failed"; exit 1; }

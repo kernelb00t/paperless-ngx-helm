@@ -176,3 +176,18 @@ https://github.com/traefik/traefik-helm-chart/commit/7f2629d7fcb633b4f7a8d321c27
 {{- tpl (.value | toYaml) .context }}
 {{- end }}
 {{- end -}}
+
+{{/*
+Deployment update strategy. When switching an existing Deployment to Recreate,
+the live object still carries the default rollingUpdate block, which the API
+server rejects; rendering `rollingUpdate: null` makes Helm remove it.
+*/}}
+{{- define "paperless-ngx.deploymentStrategy" -}}
+{{- with . -}}
+strategy:
+  {{- toYaml . | nindent 2 }}
+  {{- if and (eq (.type | default "") "Recreate") (not (hasKey . "rollingUpdate")) }}
+  rollingUpdate: null
+  {{- end }}
+{{- end }}
+{{- end -}}

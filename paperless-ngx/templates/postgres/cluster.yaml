@@ -47,6 +47,11 @@ spec:
     {{- end }}
   {{- end }}
 
+  {{- with .Values.cnpg.plugins }}
+  plugins:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+
   {{- if .Values.cnpg.parameters }}
   postgresql:
     parameters:

@@ -8,6 +8,9 @@ metadata:
     app.kubernetes.io/component: redis
 spec:
   replicas: 1
+  {{- with .Values.redis.strategy }}
+  {{- include "paperless-ngx.deploymentStrategy" . | nindent 2 }}
+  {{- end }}
   selector:
     matchLabels:
       app.kubernetes.io/name: {{ include "paperless-ngx.name" . }}

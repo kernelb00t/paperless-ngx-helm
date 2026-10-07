@@ -19,6 +19,11 @@ paperless:
     # Defaults to .Chart.AppVersion when left empty
     tag: ""
   replicaCount: 1
+  # -- Deployment update strategy. `Recreate` avoids Multi-Attach errors with
+  # ReadWriteOnce PVCs (the old pod is stopped before the new one starts).
+  # Use `type: RollingUpdate` only with ReadWriteMany volumes.
+  strategy:
+    type: Recreate
   # -- Paperless application configuration via environment variables.
   # See https://docs.paperless-ngx.com/configuration/ for the full list.
   config:
@@ -233,6 +238,14 @@ cnpg:
   #    the password. Set superuserSecret to the secret name if you want to
   #    customise it; leave empty to let CNPG generate it.
   superuserSecret: ""
+  # -- CNPG-I plugins registered on the Cluster (spec.plugins), e.g. the
+  # Barman Cloud plugin for backups / WAL archiving (CNPG >= 1.26).
+  # https://cloudnative-pg.io/docs/current/cnpg_i/
+  plugins: []
+  #  - name: barman-cloud.cloudnative-pg.io
+  #    isWALArchiver: true
+  #    parameters:
+  #      barmanObjectName: paperless-store
   # -- Extra parameters appended to postgresql.conf
   parameters: {}
   #  max_connections: "200"
@@ -270,6 +283,9 @@ redis:
     accessModes:
       - ReadWriteOnce
     size: 1Gi
+  # -- Deployment update strategy (Recreate is safe with a ReadWriteOnce PVC)
+  strategy:
+    type: Recreate
   resources: {}
   podSecurityContext:
     fsGroup: 999

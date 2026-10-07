@@ -123,10 +123,12 @@ See [`paperless-ngx/values.yaml`](paperless-ngx/values.yaml) for the full, annot
 | `paperless.config` | Non-secret env vars passed to the app | see values.yaml |
 | `paperless.secrets.*` | Secret credentials (secret key, admin user/password) — **required** unless `existingSecret` is set | see values.yaml |
 | `paperless.existingSecret` | Name of a pre-existing K8s Secret to use instead of chart-managed secrets. The secret must contain `PAPERLESS_SECRET_KEY`, `PAPERLESS_ADMIN_USER`, `PAPERLESS_ADMIN_PASSWORD`, `PAPERLESS_ADMIN_MAIL` | `""` |
+| `paperless.strategy` | Deployment update strategy (`Recreate` avoids Multi-Attach errors with RWO PVCs) | `{type: Recreate}` |
 | `ingress.enabled` | Expose Paperless via an Ingress | `false` |
 | `persistence.*.size` | PVC sizes for data / media / export / consume | various |
 | `cnpg.instances` | Number of CloudNativePG instances | `1` |
 | `cnpg.storage.size` | Storage size for the Postgres cluster | `10Gi` |
+| `cnpg.plugins` | CNPG-I plugins for the Cluster (e.g. Barman Cloud for backups / WAL archiving) | `[]` |
 | `redis.enabled` | Deploy Redis sidecar | `true` |
 | `gotenberg.enabled` | Deploy Gotenberg | `true` |
 | `tika.enabled` | Deploy Tika | `true` |

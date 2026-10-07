@@ -1,0 +1,34 @@
+suite: redis
+templates:
+  - templates/redis/deployment.yaml
+tests:
+  - it: defaults to the Recreate strategy
+    asserts:
+      - equal:
+          path: spec.strategy.type
+          value: Recreate
+
+  - it: requires the password and rolls the pod when it changes
+    set:
+      redis.password: s3cret
+    asserts:
+      - exists:
+          path: spec.template.metadata.annotations["checksum/secret"]
+      - equal:
+          path: spec.template.spec.containers[0].args
+          value:
+            - --requirepass
+            - $(REDIS_PASSWORD)
+
+  - it: mounts a PVC when persistence is enabled
+    set:
+      redis.persistence.enabled: true
+    release:
+      name: rel
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: data
+            persistentVolumeClaim:
+              claimName: rel-paperless-ngx-redis

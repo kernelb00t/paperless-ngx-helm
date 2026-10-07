@@ -102,6 +102,20 @@ Full name of the CloudNativePG Cluster
 {{- end }}
 
 {{/*
+Secret holding the PostgreSQL application user credentials (username/password).
+CNPG generates <cluster>-app unless a custom secret is given for initdb.
+`superuserSecret` is the deprecated name of `appSecret`.
+*/}}
+{{- define "paperless-ngx.postgresAppSecretName" -}}
+{{- $custom := .Values.cnpg.appSecret | default .Values.cnpg.superuserSecret }}
+{{- if $custom }}
+{{- $custom }}
+{{- else }}
+{{- printf "%s-app" (include "paperless-ngx.postgresClusterName" .) }}
+{{- end }}
+{{- end }}
+
+{{/*
 Service name for PostgreSQL (CNPG creates a service named <cluster>-rw for the primary)
 */}}
 {{- define "paperless-ngx.postgresServiceName" -}}

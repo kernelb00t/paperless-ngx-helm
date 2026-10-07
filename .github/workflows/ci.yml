@@ -33,6 +33,7 @@ jobs:
               - "paperless-ngx/**"
               - "ct.yaml"
               - ".github/workflows/ci.yml"
+              - ".github/scripts/**"
 
   # ---------------------------------------------------------------------------
   # Job 1.1 – Kube-linter: static security and best practices analysis
@@ -96,15 +97,36 @@ jobs:
       - name: Run chart-testing (lint)
         run: ct lint --config ct.yaml --all
 
+      - name: Install helm-unittest
+        run: |
+          # Helm 4 cannot GPG-verify plugins installed from git.
+          VERIFY=""
+          if helm version --short | grep -q '^v4'; then VERIFY="--verify=false"; fi
+          helm plugin install https://github.com/helm-unittest/helm-unittest.git \
+            --version v1.2.1 $VERIFY
+
+      - name: Run template unit tests
+        run: helm unittest paperless-ngx
+
   # ---------------------------------------------------------------------------
   # Job 2 – Integration: full cluster deployment on KinD
+  #   install – fresh install of this chart
+  #   upgrade – install the latest published chart, write data, upgrade to
+  #             this chart and check the data survived
   # ---------------------------------------------------------------------------
   integration:
-    name: Integration Test
+    name: Integration (${{ matrix.scenario }})
     runs-on: ubuntu-latest
     needs: [lint, changes]
     if: needs.changes.outputs.run_ci == 'true'
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        scenario: [install, upgrade]
+    env:
+      NAMESPACE: paperless-test
+      RELEASE: paperless-ngx
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -128,41 +150,54 @@ jobs:
             --wait \
             --timeout 5m
 
-      - name: Install Helm chart
+      - name: Generate credentials
         run: |
-          helm install paperless-ngx ./paperless-ngx \
+          SECRET_KEY="$(openssl rand -hex 32)"
+          ADMIN_PASSWORD="$(openssl rand -hex 16)"
+          echo "::add-mask::${SECRET_KEY}"
+          echo "::add-mask::${ADMIN_PASSWORD}"
+          echo "SECRET_KEY=${SECRET_KEY}" >> "$GITHUB_ENV"
+          echo "ADMIN_PASSWORD=${ADMIN_PASSWORD}" >> "$GITHUB_ENV"
+
+      - name: Install latest published chart
+        if: matrix.scenario == 'upgrade'
+        run: |
+          helm install "$RELEASE" oci://ghcr.io/kernelb00t/paperless-ngx \
             --values paperless-ngx/ci/ct-values.yaml \
-            --set "paperless.secrets.PAPERLESS_SECRET_KEY=$(openssl rand -hex 32)" \
-            --set "paperless.secrets.PAPERLESS_ADMIN_PASSWORD=$(openssl rand -hex 16)" \
-            --namespace paperless-test \
+            --set "paperless.secrets.PAPERLESS_SECRET_KEY=${SECRET_KEY}" \
+            --set "paperless.secrets.PAPERLESS_ADMIN_PASSWORD=${ADMIN_PASSWORD}" \
+            --namespace "$NAMESPACE" \
             --create-namespace \
             --timeout 15m
+          helm list --namespace "$NAMESPACE"
 
-      - name: Wait for CNPG cluster to be ready
-        run: |
-          kubectl wait cluster/paperless-ngx-postgres \
-            --for=condition=Ready \
-            --timeout=300s \
-            --namespace paperless-test
+      - name: Wait for the published release
+        if: matrix.scenario == 'upgrade'
+        run: .github/scripts/wait-ready.sh "$NAMESPACE" "$RELEASE"
 
-      - name: Wait for deployments to be available
-        run: |
-          kubectl rollout status deployment/paperless-ngx-redis \
-            --namespace paperless-test --timeout=2m
-          kubectl rollout status deployment/paperless-ngx-gotenberg \
-            --namespace paperless-test --timeout=2m
-          kubectl rollout status deployment/paperless-ngx-tika \
-            --namespace paperless-test --timeout=2m
-          kubectl rollout status deployment/paperless-ngx \
-            --namespace paperless-test --timeout=10m
+      - name: Write data with the published release
+        if: matrix.scenario == 'upgrade'
+        run: .github/scripts/smoke-test.sh "$NAMESPACE" "$RELEASE" create-tag
 
-      - name: Smoke test (HTTP GET)
+      - name: Install or upgrade to this chart
         run: |
-          # Get the service URL (KinD cluster, so we use kubectl port-forward or just curl from within the cluster)
-          # We'll use a temporary pod to curl the service to avoid port-forwarding complexity in CI
-          kubectl run smoke-test --rm -i --restart=Never --image=curlimages/curl --namespace paperless-test -- \
-            curl -sSL -o /dev/null -w "%{http_code}" http://paperless-ngx:8000/api/ \
-            | grep -E "200|302"
+          helm upgrade --install "$RELEASE" ./paperless-ngx \
+            --values paperless-ngx/ci/ct-values.yaml \
+            --set "paperless.secrets.PAPERLESS_SECRET_KEY=${SECRET_KEY}" \
+            --set "paperless.secrets.PAPERLESS_ADMIN_PASSWORD=${ADMIN_PASSWORD}" \
+            --namespace "$NAMESPACE" \
+            --create-namespace \
+            --timeout 15m
+          helm list --namespace "$NAMESPACE"
+
+      - name: Wait for the release to be ready
+        run: .github/scripts/wait-ready.sh "$NAMESPACE" "$RELEASE"
+
+      - name: Smoke test
+        run: |
+          ACTION=""
+          if [ "${{ matrix.scenario }}" = "upgrade" ]; then ACTION="check-tag"; fi
+          .github/scripts/smoke-test.sh "$NAMESPACE" "$RELEASE" $ACTION
 
       - name: Check Paperless-NGX logs for errors
         run: |
@@ -211,7 +246,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: k8s-diagnostics
+          name: k8s-diagnostics-${{ matrix.scenario }}
           path: |
             pod-status.log
             events.log
@@ -219,3 +254,22 @@ jobs:
             redis.log
             cnpg-cluster.log
           retention-days: 5
+
+  # ---------------------------------------------------------------------------
+  # Single status check summarising the integration matrix (keeps the
+  # "Integration Test" check name stable for branch protection / auto-merge).
+  # ---------------------------------------------------------------------------
+  integration-result:
+    name: Integration Test
+    runs-on: ubuntu-latest
+    needs: [integration]
+    if: always()
+    steps:
+      - name: Check integration results
+        env:
+          RESULT: ${{ needs.integration.result }}
+        run: |
+          echo "Integration matrix result: ${RESULT}"
+          if [ "$RESULT" != "success" ] && [ "$RESULT" != "skipped" ]; then
+            exit 1
+          fi

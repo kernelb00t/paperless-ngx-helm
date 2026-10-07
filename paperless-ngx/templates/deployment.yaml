@@ -24,10 +24,17 @@ spec:
         {{- with .Values.paperless.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
-      {{- with .Values.paperless.podAnnotations }}
       annotations:
+        checksum/config: {{ toYaml .Values.paperless.config | sha256sum }}
+        {{- if not .Values.paperless.existingSecret }}
+        checksum/secret: {{ print .Release.Namespace "/" .Release.Name (toYaml .Values.paperless.secrets) | sha256sum }}
+        {{- end }}
+        {{- if and .Values.redis.enabled .Values.redis.password }}
+        checksum/redis-secret: {{ print .Release.Namespace "/" .Release.Name .Values.redis.password | sha256sum }}
+        {{- end }}
+        {{- with .Values.paperless.podAnnotations }}
         {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {{- end }}
     spec:
       {{- include "paperless-ngx.imagePullSecrets" . | nindent 6 }}
       serviceAccountName: {{ include "paperless-ngx.serviceAccountName" . }}
@@ -75,12 +82,12 @@ spec:
             - name: PAPERLESS_DBUSER
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "paperless-ngx.postgresClusterName" . }}-app
+                  name: {{ include "paperless-ngx.postgresAppSecretName" . }}
                   key: username
             - name: PAPERLESS_DBPASS
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "paperless-ngx.postgresClusterName" . }}-app
+                  name: {{ include "paperless-ngx.postgresAppSecretName" . }}
                   key: password
             {{- end }}
             # ---- Redis ----
@@ -158,22 +165,22 @@ spec:
         {{- if .Values.persistence.data.enabled }}
         - name: data
           persistentVolumeClaim:
-            claimName: {{ include "paperless-ngx.fullname" . }}-data
+            claimName: {{ .Values.persistence.data.existingClaim | default (printf "%s-data" (include "paperless-ngx.fullname" .)) }}
         {{- end }}
         {{- if .Values.persistence.media.enabled }}
         - name: media
           persistentVolumeClaim:
-            claimName: {{ include "paperless-ngx.fullname" . }}-media
+            claimName: {{ .Values.persistence.media.existingClaim | default (printf "%s-media" (include "paperless-ngx.fullname" .)) }}
         {{- end }}
         {{- if .Values.persistence.export.enabled }}
         - name: export
           persistentVolumeClaim:
-            claimName: {{ include "paperless-ngx.fullname" . }}-export
+            claimName: {{ .Values.persistence.export.existingClaim | default (printf "%s-export" (include "paperless-ngx.fullname" .)) }}
         {{- end }}
         {{- if .Values.persistence.consume.enabled }}
         - name: consume
           persistentVolumeClaim:
-            claimName: {{ include "paperless-ngx.fullname" . }}-consume
+            claimName: {{ .Values.persistence.consume.existingClaim | default (printf "%s-consume" (include "paperless-ngx.fullname" .)) }}
         {{- end }}
         {{- with .Values.paperless.extraVolumes }}
         {{- toYaml . | nindent 8 }}

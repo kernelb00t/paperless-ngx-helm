@@ -1,0 +1,62 @@
+suite: cnpg cluster
+templates:
+  - templates/postgres/cluster.yaml
+tests:
+  - it: derives the image tag from postgresVersion
+    set:
+      cnpg.postgresVersion: 19
+    asserts:
+      - equal:
+          path: spec.imageName
+          value: ghcr.io/cloudnative-pg/postgresql:19
+
+  - it: lets image.tag override postgresVersion
+    set:
+      cnpg.image.tag: 18.1-standard-trixie
+    asserts:
+      - equal:
+          path: spec.imageName
+          value: ghcr.io/cloudnative-pg/postgresql:18.1-standard-trixie
+
+  - it: lets CNPG generate the app secret by default
+    asserts:
+      - notExists:
+          path: spec.bootstrap.initdb.secret
+
+  - it: bootstraps the app user from cnpg.appSecret
+    set:
+      cnpg.appSecret: my-db-creds
+    asserts:
+      - equal:
+          path: spec.bootstrap.initdb.secret.name
+          value: my-db-creds
+
+  - it: maps the deprecated superuserSecret to the app secret
+    set:
+      cnpg.superuserSecret: legacy-creds
+    asserts:
+      - equal:
+          path: spec.bootstrap.initdb.secret.name
+          value: legacy-creds
+
+  - it: registers CNPG-I plugins
+    set:
+      cnpg.plugins:
+        - name: barman-cloud.cloudnative-pg.io
+          isWALArchiver: true
+          parameters:
+            barmanObjectName: store
+    asserts:
+      - equal:
+          path: spec.plugins[0].name
+          value: barman-cloud.cloudnative-pg.io
+      - equal:
+          path: spec.plugins[0].isWALArchiver
+          value: true
+
+  - it: renders nothing when CNPG is disabled
+    set:
+      cnpg.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0

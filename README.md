@@ -126,8 +126,11 @@ See [`paperless-ngx/values.yaml`](paperless-ngx/values.yaml) for the full, annot
 | `paperless.strategy` | Deployment update strategy (`Recreate` avoids Multi-Attach errors with RWO PVCs) | `{type: Recreate}` |
 | `ingress.enabled` | Expose Paperless via an Ingress | `false` |
 | `persistence.*.size` | PVC sizes for data / media / export / consume | various |
+| `persistence.*.existingClaim` | Use an existing PVC instead of creating one | `""` |
 | `cnpg.instances` | Number of CloudNativePG instances | `1` |
 | `cnpg.storage.size` | Storage size for the Postgres cluster | `10Gi` |
+| `cnpg.postgresVersion` | PostgreSQL major version (image tag unless `cnpg.image.tag` is set) | `18` |
+| `cnpg.appSecret` | Existing `basic-auth` secret for the app user (empty = CNPG generates `<cluster>-app`) | `""` |
 | `cnpg.plugins` | CNPG-I plugins for the Cluster (e.g. Barman Cloud for backups / WAL archiving). Requires CNPG >= 1.26 and the plugin deployed separately — see the [CNPG-I docs](https://cloudnative-pg.io/docs/current/cnpg_i/) | `[]` |
 | `redis.enabled` | Deploy Redis sidecar | `true` |
 | `redis.strategy` | Redis Deployment update strategy (`Recreate` avoids Multi-Attach errors with RWO PVCs) | `{type: Recreate}` |
@@ -150,7 +153,7 @@ These are automatically wired into the Paperless deployment.
 
 ### Upgrading PostgreSQL major version
 
-Bumping `cnpg.postgresVersion` (and `cnpg.image.tag`) triggers a major-version upgrade.
+Bumping `cnpg.postgresVersion` triggers a major-version upgrade (it is used as the image tag unless `cnpg.image.tag` is set).
 CloudNativePG supports this via its built-in `pg_upgrade` method — see the
 [CNPG upgrade docs](https://cloudnative-pg.io/docs/current/postgresql_upgrade/) before proceeding.
 
@@ -170,6 +173,17 @@ helm upgrade my-paperless paperless-ngx/paperless-ngx -n paperless -f my-values.
 helm upgrade my-paperless oci://ghcr.io/kernelb00t/paperless-ngx \
   --version <new-version> -n paperless -f my-values.yaml
 ```
+
+## Development
+
+```bash
+helm lint paperless-ngx -f paperless-ngx/ci/ct-values.yaml
+helm plugin install https://github.com/helm-unittest/helm-unittest.git   # add --verify=false on Helm 4
+helm unittest paperless-ngx
+```
+
+CI also installs the chart on a KinD cluster, and upgrades from the latest
+published release to check that existing installations keep working.
 
 ## Releases & Changelog
 

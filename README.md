@@ -128,8 +128,9 @@ See [`paperless-ngx/values.yaml`](paperless-ngx/values.yaml) for the full, annot
 | `persistence.*.size` | PVC sizes for data / media / export / consume | various |
 | `cnpg.instances` | Number of CloudNativePG instances | `1` |
 | `cnpg.storage.size` | Storage size for the Postgres cluster | `10Gi` |
-| `cnpg.plugins` | CNPG-I plugins for the Cluster (e.g. Barman Cloud for backups / WAL archiving) | `[]` |
+| `cnpg.plugins` | CNPG-I plugins for the Cluster (e.g. Barman Cloud for backups / WAL archiving). Requires CNPG >= 1.26 and the plugin deployed separately — see the [CNPG-I docs](https://cloudnative-pg.io/docs/current/cnpg_i/) | `[]` |
 | `redis.enabled` | Deploy Redis sidecar | `true` |
+| `redis.strategy` | Redis Deployment update strategy (`Recreate` avoids Multi-Attach errors with RWO PVCs) | `{type: Recreate}` |
 | `gotenberg.enabled` | Deploy Gotenberg | `true` |
 | `tika.enabled` | Deploy Tika | `true` |
 

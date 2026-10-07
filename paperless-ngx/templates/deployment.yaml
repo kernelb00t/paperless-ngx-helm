@@ -7,6 +7,9 @@ metadata:
     app.kubernetes.io/component: paperless
 spec:
   replicas: {{ .Values.paperless.replicaCount }}
+  {{- with .Values.paperless.strategy }}
+  {{- include "paperless-ngx.deploymentStrategy" . | nindent 2 }}
+  {{- end }}
   selector:
     matchLabels:
       app.kubernetes.io/name: {{ include "paperless-ngx.name" . }}

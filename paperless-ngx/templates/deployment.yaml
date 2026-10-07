@@ -29,10 +29,10 @@ spec:
         {{- if not .Values.paperless.existingSecret }}
         checksum/secret: {{ print .Release.Namespace "/" .Release.Name (toYaml .Values.paperless.secrets) | sha256sum }}
         {{- end }}
-        {{- if and .Values.redis.enabled .Values.redis.password }}
+        {{- if and .Values.redis.enabled .Values.redis.password (not .Values.redis.passwordSecretKeyRef.name) }}
         checksum/redis-secret: {{ print .Release.Namespace "/" .Release.Name .Values.redis.password | sha256sum }}
         {{- end }}
-        {{- with .Values.paperless.podAnnotations }}
+        {{- with omit .Values.paperless.podAnnotations "checksum/config" "checksum/secret" "checksum/redis-secret" }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:

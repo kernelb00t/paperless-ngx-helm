@@ -262,14 +262,19 @@ jobs:
   integration-result:
     name: Integration Test
     runs-on: ubuntu-latest
-    needs: [integration]
+    needs: [changes, integration]
     if: always()
     steps:
       - name: Check integration results
         env:
+          CHANGES: ${{ needs.changes.result }}
+          RUN_CI: ${{ needs.changes.outputs.run_ci }}
           RESULT: ${{ needs.integration.result }}
         run: |
-          echo "Integration matrix result: ${RESULT}"
-          if [ "$RESULT" != "success" ] && [ "$RESULT" != "skipped" ]; then
-            exit 1
+          echo "changes=${CHANGES} run_ci=${RUN_CI} integration=${RESULT}"
+          # Skipping is only fine when the path filter ran and found nothing
+          # chart-related; a skip caused by a failed Lint job is a failure.
+          if [ "$CHANGES" = "success" ] && [ "$RUN_CI" != "true" ]; then
+            exit 0
           fi
+          [ "$RESULT" = "success" ]

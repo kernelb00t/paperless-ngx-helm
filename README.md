@@ -11,7 +11,7 @@ always tracking the latest release.
 | Component | Default image | Purpose |
 |-----------|--------------|---------|
 | Paperless-NGX | `ghcr.io/paperless-ngx/paperless-ngx` | Main application |
-| PostgreSQL | `ghcr.io/cloudnative-pg/postgresql:16` | Database (via CloudNativePG operator) |
+| PostgreSQL | `ghcr.io/cloudnative-pg/postgresql:18` | Database (via CloudNativePG operator) |
 | Redis | `redis:7-alpine` | Task queue / caching |
 | Gotenberg | `gotenberg/gotenberg:8` | Office-document → PDF conversion |
 | Tika | `ghcr.io/paperless-ngx/tika:2.9.1-minimal` | Document text extraction |

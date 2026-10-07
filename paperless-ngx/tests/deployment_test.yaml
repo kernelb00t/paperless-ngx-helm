@@ -170,6 +170,39 @@ tests:
           # checksum of the default paperless.config block
           value: 1ae1801a80bf0cd9faf7acae179841d0d9271a4dca6cb397e69b921b8d86559b
 
+  - it: ties the secret checksum to paperless.secrets
+    release:
+      name: rel
+      namespace: ns
+    set:
+      paperless.secrets.PAPERLESS_SECRET_KEY: a
+      paperless.secrets.PAPERLESS_ADMIN_PASSWORD: b
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["checksum/secret"]
+          value: ad9e66e13c30f09183bac3623845c1cdd6d12ffbf969bc635de51eb9e0033b5d
+
+  - it: changes the secret checksum when a secret value changes
+    release:
+      name: rel
+      namespace: ns
+    set:
+      paperless.secrets.PAPERLESS_SECRET_KEY: c
+      paperless.secrets.PAPERLESS_ADMIN_PASSWORD: b
+    asserts:
+      - notEqual:
+          path: spec.template.metadata.annotations["checksum/secret"]
+          value: ad9e66e13c30f09183bac3623845c1cdd6d12ffbf969bc635de51eb9e0033b5d
+
+  - it: does not let podAnnotations override the checksums
+    set:
+      paperless.podAnnotations:
+        checksum/config: pinned
+    asserts:
+      - notEqual:
+          path: spec.template.metadata.annotations["checksum/config"]
+          value: pinned
+
   - it: skips the secret checksum with an existing secret
     set:
       paperless.existingSecret: external
@@ -187,9 +220,11 @@ tests:
       redis.password: s3cret
     release:
       name: rel
+      namespace: ns
     asserts:
-      - exists:
+      - equal:
           path: spec.template.metadata.annotations["checksum/redis-secret"]
+          value: 25cacd44c1f1dc9f9185da7121ef76639b1d7c52980298d502cd97ff01aa8787
       - contains:
           path: spec.template.spec.containers[0].env
           content:
@@ -203,3 +238,22 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].image
           value: ghcr.io/paperless-ngx/paperless-ngx:9.9.9
+
+  - it: changes the Redis checksum when redis.password changes
+    set:
+      redis.password: other
+    release:
+      name: rel
+      namespace: ns
+    asserts:
+      - notEqual:
+          path: spec.template.metadata.annotations["checksum/redis-secret"]
+          value: 25cacd44c1f1dc9f9185da7121ef76639b1d7c52980298d502cd97ff01aa8787
+
+  - it: skips the Redis checksum for an external password secret
+    set:
+      redis.password: unused
+      redis.passwordSecretKeyRef.name: external-redis
+    asserts:
+      - notExists:
+          path: spec.template.metadata.annotations["checksum/redis-secret"]

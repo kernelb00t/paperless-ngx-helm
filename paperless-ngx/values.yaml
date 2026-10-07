@@ -56,6 +56,9 @@ paperless:
     PAPERLESS_ADMIN_MAIL: "admin@example.com"
   # -- Reference an externally managed secret instead of letting the chart
   #    create one. When set, the `secrets` block above is ignored.
+  #    Changes to `config` and `secrets` restart the pod automatically, but
+  #    Helm cannot see inside an external secret: after rotating it, restart
+  #    the pod yourself (kubectl rollout restart deployment/<name>).
   existingSecret: ""
   service:
     type: ClusterIP
@@ -242,6 +245,9 @@ cnpg:
   #    to let CNPG generate a secret named <clusterName>-app. Otherwise set it
   #    to an existing `kubernetes.io/basic-auth` secret whose `username` key
   #    matches `cnpg.username`; Paperless reads its credentials from it.
+  #    NOTE: CNPG only applies it when it creates the cluster. On an existing
+  #    installation it must contain the *current* owner password, or Paperless
+  #    will fail to authenticate.
   appSecret: ""
   # -- Deprecated alias of `appSecret` (it never configured the superuser).
   superuserSecret: ""
@@ -281,6 +287,8 @@ redis:
     enabled: true
   # -- Optional Redis password (leave empty for no auth)
   password: ""
+  # -- Use an existing secret for the password instead (takes precedence).
+  #    Pods are not restarted when that external secret changes.
   passwordSecretKeyRef:
     name: ""
     key: password

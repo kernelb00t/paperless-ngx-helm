@@ -13,6 +13,10 @@ for _ in $(seq 1 30); do
   kubectl get "cluster/${FULLNAME}-postgres" -n "$NS" >/dev/null 2>&1 && break
   sleep 2
 done
+if ! kubectl get "cluster/${FULLNAME}-postgres" -n "$NS" >/dev/null 2>&1; then
+  echo "::error::Cluster ${FULLNAME}-postgres not found in ${NS} after 60s (is the CNPG operator installed?)"
+  exit 1
+fi
 kubectl wait "cluster/${FULLNAME}-postgres" --for=condition=Ready --timeout=300s -n "$NS"
 
 for component in redis gotenberg tika; do

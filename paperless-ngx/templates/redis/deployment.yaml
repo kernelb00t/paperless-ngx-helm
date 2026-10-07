@@ -22,6 +22,10 @@ spec:
         app.kubernetes.io/name: {{ include "paperless-ngx.name" . }}
         app.kubernetes.io/instance: {{ .Release.Name }}
         app.kubernetes.io/component: redis
+      {{- if and .Values.redis.password (not .Values.redis.passwordSecretKeyRef.name) }}
+      annotations:
+        checksum/secret: {{ print .Release.Namespace "/" .Release.Name .Values.redis.password | sha256sum }}
+      {{- end }}
     spec:
       {{- include "paperless-ngx.imagePullSecrets" . | nindent 6 }}
       {{- with .Values.redis.podSecurityContext }}

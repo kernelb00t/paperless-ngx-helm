@@ -1,0 +1,266 @@
+suite: paperless deployment
+templates:
+  - templates/deployment.yaml
+tests:
+  - it: defaults to the Recreate strategy and clears rollingUpdate
+    asserts:
+      - equal:
+          path: spec.strategy
+          value:
+            type: Recreate
+            rollingUpdate: null
+
+  - it: allows opting back into RollingUpdate
+    set:
+      paperless.strategy:
+        type: RollingUpdate
+        rollingUpdate:
+          maxUnavailable: 0
+    asserts:
+      - equal:
+          path: spec.strategy
+          value:
+            type: RollingUpdate
+            rollingUpdate:
+              maxUnavailable: 0
+
+  - it: mounts the chart-managed PVCs by default
+    release:
+      name: rel
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: data
+            persistentVolumeClaim:
+              claimName: rel-paperless-ngx-data
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: consume
+            persistentVolumeClaim:
+              claimName: rel-paperless-ngx-consume
+
+  - it: mounts existing claims when set
+    set:
+      persistence.data.existingClaim: my-data
+      persistence.media.existingClaim: my-media
+      persistence.export.existingClaim: my-export
+      persistence.consume.existingClaim: my-consume
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: data
+            persistentVolumeClaim:
+              claimName: my-data
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: media
+            persistentVolumeClaim:
+              claimName: my-media
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: export
+            persistentVolumeClaim:
+              claimName: my-export
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: consume
+            persistentVolumeClaim:
+              claimName: my-consume
+
+  - it: skips volumes for disabled persistence
+    set:
+      persistence.export.enabled: false
+    asserts:
+      - notContains:
+          path: spec.template.spec.volumes
+          content:
+            name: export
+          any: true
+
+  - it: reads DB credentials from the CNPG-generated app secret by default
+    release:
+      name: rel
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: PAPERLESS_DBUSER
+            valueFrom:
+              secretKeyRef:
+                name: rel-paperless-ngx-postgres-app
+                key: username
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: PAPERLESS_DBPASS
+            valueFrom:
+              secretKeyRef:
+                name: rel-paperless-ngx-postgres-app
+                key: password
+
+  - it: reads DB credentials from cnpg.appSecret when set
+    set:
+      cnpg.appSecret: my-db-creds
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: PAPERLESS_DBPASS
+            valueFrom:
+              secretKeyRef:
+                name: my-db-creds
+                key: password
+
+  - it: still honours the deprecated cnpg.superuserSecret
+    set:
+      cnpg.superuserSecret: legacy-creds
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: PAPERLESS_DBUSER
+            valueFrom:
+              secretKeyRef:
+                name: legacy-creds
+                key: username
+
+  - it: omits DB env vars when CNPG is disabled
+    set:
+      cnpg.enabled: false
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: PAPERLESS_DBHOST
+          any: true
+
+  - it: adds checksum annotations so config and secret changes roll the pod
+    set:
+      paperless.podAnnotations:
+        team: docs
+    asserts:
+      - exists:
+          path: spec.template.metadata.annotations["checksum/config"]
+      - exists:
+          path: spec.template.metadata.annotations["checksum/secret"]
+      - notExists:
+          path: spec.template.metadata.annotations["checksum/redis-secret"]
+      - equal:
+          path: spec.template.metadata.annotations.team
+          value: docs
+
+  - it: keeps a stable config checksum for the default config
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["checksum/config"]
+          value: 1ae1801a80bf0cd9faf7acae179841d0d9271a4dca6cb397e69b921b8d86559b
+
+  - it: changes the config checksum when paperless.config changes
+    set:
+      paperless.config.PAPERLESS_OCR_LANGUAGE: fra
+    asserts:
+      - notEqual:
+          path: spec.template.metadata.annotations["checksum/config"]
+          # checksum of the default paperless.config block
+          value: 1ae1801a80bf0cd9faf7acae179841d0d9271a4dca6cb397e69b921b8d86559b
+
+  - it: ties the secret checksum to paperless.secrets
+    release:
+      name: rel
+      namespace: ns
+    set:
+      paperless.secrets.PAPERLESS_SECRET_KEY: a
+      paperless.secrets.PAPERLESS_ADMIN_PASSWORD: b
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["checksum/secret"]
+          value: ad9e66e13c30f09183bac3623845c1cdd6d12ffbf969bc635de51eb9e0033b5d
+
+  - it: changes the secret checksum when a secret value changes
+    release:
+      name: rel
+      namespace: ns
+    set:
+      paperless.secrets.PAPERLESS_SECRET_KEY: c
+      paperless.secrets.PAPERLESS_ADMIN_PASSWORD: b
+    asserts:
+      - notEqual:
+          path: spec.template.metadata.annotations["checksum/secret"]
+          value: ad9e66e13c30f09183bac3623845c1cdd6d12ffbf969bc635de51eb9e0033b5d
+
+  - it: does not let podAnnotations override the checksums
+    set:
+      paperless.podAnnotations:
+        checksum/config: pinned
+    asserts:
+      - notEqual:
+          path: spec.template.metadata.annotations["checksum/config"]
+          value: pinned
+
+  - it: skips the secret checksum with an existing secret
+    set:
+      paperless.existingSecret: external
+    asserts:
+      - notExists:
+          path: spec.template.metadata.annotations["checksum/secret"]
+      - contains:
+          path: spec.template.spec.containers[0].envFrom
+          content:
+            secretRef:
+              name: external
+
+  - it: wires the Redis password through REDIS_PASSWORD
+    set:
+      redis.password: s3cret
+    release:
+      name: rel
+      namespace: ns
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["checksum/redis-secret"]
+          value: 25cacd44c1f1dc9f9185da7121ef76639b1d7c52980298d502cd97ff01aa8787
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: PAPERLESS_REDIS
+            value: redis://:$(REDIS_PASSWORD)@rel-paperless-ngx-redis:6379/0
+
+  - it: uses appVersion as the default image tag
+    chart:
+      appVersion: 9.9.9
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: ghcr.io/paperless-ngx/paperless-ngx:9.9.9
+
+  - it: changes the Redis checksum when redis.password changes
+    set:
+      redis.password: other
+    release:
+      name: rel
+      namespace: ns
+    asserts:
+      - notEqual:
+          path: spec.template.metadata.annotations["checksum/redis-secret"]
+          value: 25cacd44c1f1dc9f9185da7121ef76639b1d7c52980298d502cd97ff01aa8787
+
+  - it: skips the Redis checksum for an external password secret
+    set:
+      redis.password: unused
+      redis.passwordSecretKeyRef.name: external-redis
+    asserts:
+      - notExists:
+          path: spec.template.metadata.annotations["checksum/redis-secret"]
+
+  - it: tolerates null podAnnotations
+    set:
+      paperless.podAnnotations: null
+    asserts:
+      - exists:
+          path: spec.template.metadata.annotations["checksum/config"]

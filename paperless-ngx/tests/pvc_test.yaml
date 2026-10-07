@@ -1,0 +1,20 @@
+suite: persistent volume claims
+templates:
+  - templates/pvc.yaml
+tests:
+  - it: creates one PVC per enabled volume
+    asserts:
+      - hasDocuments:
+          count: 4
+
+  - it: does not create a PVC for an existing claim
+    set:
+      persistence.data.existingClaim: my-data
+    release:
+      name: rel
+    asserts:
+      - hasDocuments:
+          count: 3
+      - notEqual:
+          path: metadata.name
+          value: rel-paperless-ngx-data

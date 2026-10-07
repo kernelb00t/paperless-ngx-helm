@@ -56,6 +56,9 @@ paperless:
     PAPERLESS_ADMIN_MAIL: "admin@example.com"
   # -- Reference an externally managed secret instead of letting the chart
   #    create one. When set, the `secrets` block above is ignored.
+  #    Changes to `config` and `secrets` restart the pod automatically, but
+  #    Helm cannot see inside an external secret: after rotating it, restart
+  #    the pod yourself (kubectl rollout restart deployment/<name>).
   existingSecret: ""
   service:
     type: ClusterIP
@@ -171,7 +174,8 @@ persistence:
       - ReadWriteOnce
     size: 10Gi
     annotations: {}
-    # existingClaim: ""
+    # -- Use an existing PVC instead of creating one
+    existingClaim: ""
   # -- PVC for /usr/src/paperless/media (original documents)
   media:
     enabled: true
@@ -180,7 +184,8 @@ persistence:
       - ReadWriteOnce
     size: 50Gi
     annotations: {}
-    # existingClaim: ""
+    # -- Use an existing PVC instead of creating one
+    existingClaim: ""
   # -- PVC for /usr/src/paperless/export
   export:
     enabled: true
@@ -189,7 +194,8 @@ persistence:
       - ReadWriteOnce
     size: 5Gi
     annotations: {}
-    # existingClaim: ""
+    # -- Use an existing PVC instead of creating one
+    existingClaim: ""
   # -- PVC for /usr/src/paperless/consume (inbox for new documents)
   consume:
     enabled: true
@@ -198,7 +204,8 @@ persistence:
       - ReadWriteOnce
     size: 5Gi
     annotations: {}
-    # existingClaim: ""
+    # -- Use an existing PVC instead of creating one
+    existingClaim: ""
 # ---------------------------------------------------------------------------
 # CloudNativePG (CNPG) – PostgreSQL Cluster
 # Requires the CloudNativePG operator to be installed in the cluster.
@@ -210,16 +217,16 @@ cnpg:
   clusterName: ""
   # -- Number of PostgreSQL instances in the cluster
   instances: 1
-  # -- PostgreSQL major version used for the CloudNativePG cluster image.
-  # IMPORTANT: bumping this value performs a major-version upgrade.
-  # CloudNativePG supports in-place major upgrades via the `pg_upgrade` method.
-  # Set `cnpg.image.tag` to the new version and apply with:
-  #   helm upgrade ... --set cnpg.postgresVersion=17 --set cnpg.image.tag=17
+  # -- PostgreSQL major version, used as the image tag when `cnpg.image.tag`
+  # is empty. IMPORTANT: bumping it performs a major-version upgrade, which
+  # CloudNativePG handles in place via `pg_upgrade`:
+  #   helm upgrade ... --set cnpg.postgresVersion=19
   # Refer to https://cloudnative-pg.io/docs/current/postgresql_upgrade/ for details.
   postgresVersion: 18
   image:
     repository: ghcr.io/cloudnative-pg/postgresql
-    tag: "18"
+    # -- Overrides the tag derived from `postgresVersion` (e.g. "18.1-standard-trixie")
+    tag: ""
   inheritedMetadata: {}
   # -- Storage for primary + replicas
   storage:
@@ -234,9 +241,15 @@ cnpg:
   # -- Name of the database, user and secret created by CNPG bootstrap
   database: paperless
   username: paperless
-  # -- The CNPG operator will create a secret named <clusterName>-app with
-  #    the password. Set superuserSecret to the secret name if you want to
-  #    customise it; leave empty to let CNPG generate it.
+  # -- Credentials of the application user (`username` above). Leave empty
+  #    to let CNPG generate a secret named <clusterName>-app. Otherwise set it
+  #    to an existing `kubernetes.io/basic-auth` secret whose `username` key
+  #    matches `cnpg.username`; Paperless reads its credentials from it.
+  #    NOTE: CNPG only applies it when it creates the cluster. On an existing
+  #    installation it must contain the *current* owner password, or Paperless
+  #    will fail to authenticate.
+  appSecret: ""
+  # -- Deprecated alias of `appSecret` (it never configured the superuser).
   superuserSecret: ""
   # -- CNPG-I plugins registered on the Cluster (spec.plugins), e.g. the
   # Barman Cloud plugin for backups / WAL archiving (CNPG >= 1.26).
@@ -274,6 +287,8 @@ redis:
     enabled: true
   # -- Optional Redis password (leave empty for no auth)
   password: ""
+  # -- Use an existing secret for the password instead (takes precedence).
+  #    Pods are not restarted when that external secret changes.
   passwordSecretKeyRef:
     name: ""
     key: password

@@ -18,16 +18,16 @@ spec:
 
   instances: {{ .Values.cnpg.instances }}
 
-  imageName: "{{ .Values.cnpg.image.repository }}:{{ .Values.cnpg.image.tag }}"
+  imageName: "{{ .Values.cnpg.image.repository }}:{{ .Values.cnpg.image.tag | default (toString .Values.cnpg.postgresVersion) }}"
 
   # Bootstrap: create the paperless database and user
   bootstrap:
     initdb:
       database: {{ .Values.cnpg.database }}
       owner: {{ .Values.cnpg.username }}
-      {{- if .Values.cnpg.superuserSecret }}
+      {{- if or .Values.cnpg.appSecret .Values.cnpg.superuserSecret }}
       secret:
-        name: {{ .Values.cnpg.superuserSecret }}
+        name: {{ include "paperless-ngx.postgresAppSecretName" . }}
       {{- end }}
       {{- with .Values.cnpg.walSegmentSize }}
       walSegmentSize: {{ . }}

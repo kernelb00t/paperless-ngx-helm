@@ -1,0 +1,56 @@
+suite: redis
+templates:
+  - templates/redis/deployment.yaml
+tests:
+  - it: defaults to the Recreate strategy
+    asserts:
+      - equal:
+          path: spec.strategy.type
+          value: Recreate
+
+  - it: requires the password and ties the checksum to it
+    set:
+      redis.password: s3cret
+    release:
+      name: rel
+      namespace: ns
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["checksum/secret"]
+          value: 25cacd44c1f1dc9f9185da7121ef76639b1d7c52980298d502cd97ff01aa8787
+      - equal:
+          path: spec.template.spec.containers[0].args
+          value:
+            - --requirepass
+            - $(REDIS_PASSWORD)
+
+  - it: mounts a PVC when persistence is enabled
+    set:
+      redis.persistence.enabled: true
+    release:
+      name: rel
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: data
+            persistentVolumeClaim:
+              claimName: rel-paperless-ngx-redis
+
+  - it: changes the checksum when the password changes
+    set:
+      redis.password: other
+    release:
+      name: rel
+      namespace: ns
+    asserts:
+      - notEqual:
+          path: spec.template.metadata.annotations["checksum/secret"]
+          value: 25cacd44c1f1dc9f9185da7121ef76639b1d7c52980298d502cd97ff01aa8787
+
+  - it: has no checksum for an external password secret
+    set:
+      redis.passwordSecretKeyRef.name: external-redis
+    asserts:
+      - notExists:
+          path: spec.template.metadata.annotations
